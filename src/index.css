@@ -3657,3 +3657,211 @@ body {
     min-width: auto;
   }
 }
+
+
+/* ===== 库存与补货计划模块样式 ===== */
+
+.stock-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+.stock-status.critical {
+  background: var(--urgency-high);
+}
+
+.stock-status.low {
+  background: var(--urgency-medium);
+}
+
+.stock-status.stale {
+  background: var(--status-pending-evaluation);
+}
+
+.stock-status.normal {
+  background: var(--success-color);
+}
+
+.status-critical {
+  background: rgba(192, 57, 43, 0.08) !important;
+}
+
+.status-low {
+  background: rgba(230, 126, 34, 0.08) !important;
+}
+
+.status-stale {
+  background: rgba(127, 140, 141, 0.08) !important;
+}
+
+.quantity-value.critical {
+  color: var(--urgency-high);
+  font-weight: 700;
+}
+
+.minimum-stock {
+  font-size: 12px;
+  color: var(--ink-light);
+  font-weight: 500;
+}
+
+.minimum-stock::before {
+  content: "最低: ";
+  opacity: 0.8;
+}
+
+.estimated-consumption {
+  font-size: 12px;
+  color: var(--ink-light);
+  font-style: italic;
+}
+
+.days-left {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.days-left.critical {
+  color: var(--urgency-high);
+  background: rgba(192, 57, 43, 0.1);
+}
+
+.days-left.warning {
+  color: var(--urgency-medium);
+  background: rgba(230, 126, 34, 0.1);
+}
+
+.days-left.unlimited {
+  color: var(--success-color);
+  background: rgba(39, 103, 73, 0.1);
+}
+
+.inventory-stat.critical .stat-value {
+  color: var(--urgency-high);
+}
+
+.inventory-stat.low .stat-value {
+  color: var(--urgency-medium);
+}
+
+.inventory-stat.stale .stat-value {
+  color: var(--status-pending-evaluation);
+}
+
+.large-modal {
+  width: 95%;
+  max-width: 900px;
+}
+
+.inventory-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.inventory-info-grid .info-item {
+  background: var(--bg-color);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.project-usage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-usage-info .usage-label {
+  font-size: 11px;
+  color: var(--ink-light);
+}
+
+.project-usage-info .usage-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.estimated-remaining {
+  font-size: 12px;
+  color: var(--ink-light);
+  padding: 4px 8px;
+  background: var(--bg-dark);
+  border-radius: 4px;
+}
+
+.estimated-remaining strong {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.project-progress {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-dark);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.project-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.form-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.form-section .section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section .section-title::before {
+  content: "";
+  width: 4px;
+  height: 18px;
+  background: var(--primary-color);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .inventory-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .large-modal {
+    max-width: 100%;
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}

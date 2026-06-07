@@ -297,7 +297,7 @@ function App() {
               className={`view-btn ${viewMode === 'inventory' ? 'active' : ''}`}
               onClick={() => setViewMode('inventory')}
             >
-              材料台账
+              库存与补货计划
             </button>
             <button
               className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}

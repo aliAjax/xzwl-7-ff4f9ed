@@ -1,4 +1,4 @@
-import type { RestorationProject, RestorationTemplate, RestorationStaff, ScheduleItem, ProjectSchedule, ScheduleData } from '../types';
+import type { RestorationProject, RestorationTemplate, RestorationStaff, ScheduleItem, ProjectSchedule, ScheduleData, MaterialStock, StockInRecord } from '../types';
 import { DEFAULT_TEMPLATES, DEFAULT_STEP_HOURS } from '../types';
 
 const STORAGE_KEY = 'ancient-book-restoration-projects';
@@ -447,4 +447,153 @@ export function getProjectSchedulesWithDetails(projectId: string, projects: Rest
   });
 
   return { projectSchedule, scheduleItems, isOverdueRisk, staffLoadWarning };
+}
+
+const INVENTORY_STORAGE_KEY = 'ancient-book-restoration-inventory';
+
+export function generateStockInId(): string {
+  return `stk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function getMaterialStocks(): MaterialStock[] {
+  try {
+    const data = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load material stocks from storage:', e);
+  }
+  return [];
+}
+
+export function saveMaterialStocks(stocks: MaterialStock[]): { success: boolean; error?: string } {
+  try {
+    const json = JSON.stringify(stocks);
+    localStorage.setItem(INVENTORY_STORAGE_KEY, json);
+    return { success: true };
+  } catch (e) {
+    const error = e as Error;
+    return { success: false, error: `保存失败：${error.message}` };
+  }
+}
+
+export function getMaterialStock(name: string, unit: string): MaterialStock | undefined {
+  const stocks = getMaterialStocks();
+  return stocks.find(s => s.name === name && s.unit === unit);
+}
+
+export function saveMaterialStock(stock: MaterialStock): { success: boolean; error?: string } {
+  const stocks = getMaterialStocks();
+  const index = stocks.findIndex(s => s.name === stock.name && s.unit === stock.unit);
+  const now = new Date().toISOString().split('T')[0];
+  
+  if (index >= 0) {
+    stocks[index] = { ...stock, updatedAt: now };
+  } else {
+    stocks.push({ ...stock, createdAt: now, updatedAt: now });
+  }
+  
+  return saveMaterialStocks(stocks);
+}
+
+export function addStockInRecord(
+  name: string, 
+  unit: string, 
+  record: Omit<StockInRecord, 'id'>
+): { success: boolean; error?: string; stock?: MaterialStock } {
+  const stocks = getMaterialStocks();
+  const index = stocks.findIndex(s => s.name === name && s.unit === unit);
+  const now = new Date().toISOString().split('T')[0];
+  
+  let stock: MaterialStock;
+  const newRecord: StockInRecord = {
+    ...record,
+    id: generateStockInId(),
+  };
+  
+  if (index >= 0) {
+    stock = stocks[index];
+    stock.stockInRecords.push(newRecord);
+    stock.updatedAt = now;
+  } else {
+    stock = {
+      name,
+      unit,
+      openingStock: 0,
+      minimumStock: 0,
+      stockInRecords: [newRecord],
+      createdAt: now,
+      updatedAt: now,
+    };
+    stocks.push(stock);
+  }
+  
+  const result = saveMaterialStocks(stocks);
+  if (result.success) {
+    return { success: true, stock };
+  }
+  return result;
+}
+
+export function updateStockSettings(
+  name: string,
+  unit: string,
+  settings: { openingStock?: number; minimumStock?: number }
+): { success: boolean; error?: string; stock?: MaterialStock } {
+  const stocks = getMaterialStocks();
+  const index = stocks.findIndex(s => s.name === name && s.unit === unit);
+  const now = new Date().toISOString().split('T')[0];
+  
+  let stock: MaterialStock;
+  
+  if (index >= 0) {
+    stock = stocks[index];
+    if (settings.openingStock !== undefined) {
+      stock.openingStock = settings.openingStock;
+    }
+    if (settings.minimumStock !== undefined) {
+      stock.minimumStock = settings.minimumStock;
+    }
+    stock.updatedAt = now;
+  } else {
+    stock = {
+      name,
+      unit,
+      openingStock: settings.openingStock ?? 0,
+      minimumStock: settings.minimumStock ?? 0,
+      stockInRecords: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    stocks.push(stock);
+  }
+  
+  const result = saveMaterialStocks(stocks);
+  if (result.success) {
+    return { success: true, stock };
+  }
+  return result;
+}
+
+export function deleteStockInRecord(
+  name: string,
+  unit: string,
+  recordId: string
+): { success: boolean; error?: string } {
+  const stocks = getMaterialStocks();
+  const stockIndex = stocks.findIndex(s => s.name === name && s.unit === unit);
+  
+  if (stockIndex < 0) {
+    return { success: false, error: '未找到该材料库存记录' };
+  }
+  
+  const stock = stocks[stockIndex];
+  stock.stockInRecords = stock.stockInRecords.filter(r => r.id !== recordId);
+  stock.updatedAt = new Date().toISOString().split('T')[0];
+  
+  return saveMaterialStocks(stocks);
 }

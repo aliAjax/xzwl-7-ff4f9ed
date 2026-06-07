@@ -365,3 +365,49 @@ export const DEFAULT_STEP_HOURS: Record<string, number> = {
   '拍照存档': 2,
   '消毒杀虫': 3,
 };
+
+export type StockStatus = 'normal' | 'low' | 'critical' | 'stale';
+
+export const STOCK_STATUS_LABELS: Record<StockStatus, string> = {
+  'normal': '库存正常',
+  'low': '即将不足',
+  'critical': '库存不足',
+  'stale': '长期未用',
+};
+
+export interface StockInRecord {
+  id: string;
+  date: string;
+  quantity: number;
+  unitPrice?: number;
+  supplier?: string;
+  note?: string;
+}
+
+export interface MaterialStock {
+  name: string;
+  unit: string;
+  openingStock: number;
+  minimumStock: number;
+  stockInRecords: StockInRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventorySummary {
+  name: string;
+  unit: string;
+  openingStock: number;
+  totalStockIn: number;
+  totalUsed: number;
+  currentStock: number;
+  minimumStock: number;
+  estimatedConsumption: number;
+  estimatedDaysLeft: number;
+  status: StockStatus;
+  lastUsedDate: string;
+  daysSinceLastUse: number;
+  projectCount: number;
+  relatedProjects: RestorationProject[];
+  stockInRecords: StockInRecord[];
+}
