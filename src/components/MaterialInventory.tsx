@@ -49,6 +49,7 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
     setMaterialStocks(getMaterialStocks());
   }, []);
 
+
   const refreshStockData = () => {
     setMaterialStocks(getMaterialStocks());
   };
@@ -221,6 +222,16 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
     return summaries;
   }, [projects, materialStocks]);
 
+  useEffect(() => {
+    if (selectedMaterial) {
+      const updated = inventorySummaries.find(
+        m => m.name === selectedMaterial.name && m.unit === selectedMaterial.unit
+      );
+      if (updated) {
+        setSelectedMaterial(updated);
+      }
+    }
+  }, [inventorySummaries]);
   const filteredAndSortedMaterials = useMemo(() => {
     let result = [...inventorySummaries];
 
