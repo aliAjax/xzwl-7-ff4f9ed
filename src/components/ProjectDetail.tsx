@@ -1,5 +1,7 @@
-import type { RestorationProject, ImageRecord } from '../types';
+import { useMemo } from 'react';
+import type { RestorationProject, ImageRecord, ScheduleItem, ProjectSchedule } from '../types';
 import { STATUS_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
+import { getScheduleData } from '../utils/storage';
 import ImageRecordsManager from './ImageRecordsManager';
 
 interface ProjectDetailProps {
@@ -27,6 +29,80 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
   const totalSteps = project.restorationSteps.length;
   const daysLeft = getDaysUntilDelivery(project.deliveryDate);
   const isOverdue = project.status !== 'delivered' && daysLeft < 0;
+
+  const scheduleSummary = useMemo(() => {
+    const scheduleData = getScheduleData();
+    const projectSchedule: ProjectSchedule | undefined = scheduleData.projectSchedules.find(
+      ps => ps.projectId === project.id
+    );
+    const scheduleItems: ScheduleItem[] = scheduleData.schedules.filter(
+      s => s.projectId === project.id && !s.completed
+    );
+
+    if (!projectSchedule && scheduleItems.length === 0) {
+      return null;
+    }
+
+    const totalEstimatedHours = projectSchedule
+      ? projectSchedule.stepEstimates.reduce((sum, est) => sum + est.estimatedHours, 0)
+      : 0;
+    const scheduledHours = scheduleItems.reduce((sum, item) => sum + item.estimatedHours, 0);
+    const remainingSteps = project.restorationSteps.filter(s => !s.completed).length;
+
+    const staffInvolved = new Map<string, number>();
+    scheduleItems.forEach(item => {
+      const current = staffInvolved.get(item.staffName) || 0;
+      staffInvolved.set(item.staffName, current + item.estimatedHours);
+    });
+
+    let firstScheduledDate: string | null = null;
+    let lastScheduledDate: string | null = null;
+    if (scheduleItems.length > 0) {
+      const dates = scheduleItems.map(s => new Date(s.scheduledDate).getTime());
+      firstScheduledDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
+      lastScheduledDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+    }
+
+    let isOverdueRisk = false;
+    if (lastScheduledDate && project.status !== 'delivered') {
+      const lastDate = new Date(lastScheduledDate);
+      const deliveryDate = new Date(project.deliveryDate);
+      isOverdueRisk = lastDate > deliveryDate;
+    }
+
+    const staffLoadWarnings: { name: string; date: string; hours: number }[] = [];
+    const staffDailyHours = new Map<string, Map<string, number>>();
+    scheduleItems.forEach(item => {
+      if (!staffDailyHours.has(item.staffId)) {
+        staffDailyHours.set(item.staffId, new Map());
+      }
+      const dateMap = staffDailyHours.get(item.staffId)!;
+      dateMap.set(item.scheduledDate, (dateMap.get(item.scheduledDate) || 0) + item.estimatedHours);
+    });
+
+    staffDailyHours.forEach((dateMap, staffId) => {
+      const staff = scheduleData.staff.find(s => s.id === staffId);
+      if (!staff) return;
+      dateMap.forEach((hours, date) => {
+        if (hours > staff.dailyWorkHours) {
+          staffLoadWarnings.push({ name: staff.name, date, hours });
+        }
+      });
+    });
+
+    return {
+      projectSchedule,
+      scheduleItems,
+      totalEstimatedHours,
+      scheduledHours,
+      remainingSteps,
+      staffInvolved: Array.from(staffInvolved.entries()),
+      firstScheduledDate,
+      lastScheduledDate,
+      isOverdueRisk,
+      staffLoadWarnings,
+    };
+  }, [project]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -192,6 +268,95 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
               ))}
             </div>
           </div>
+
+          {scheduleSummary && (
+            <div className="detail-section">
+              <h3>排班摘要</h3>
+
+              {(scheduleSummary.isOverdueRisk || scheduleSummary.staffLoadWarnings.length > 0) && (
+                <div className="schedule-warnings">
+                  {scheduleSummary.isOverdueRisk && (
+                    <div className="schedule-warning overdue">
+                      ⚠️ 预估完成日期 {scheduleSummary.lastScheduledDate} 晚于交付日期，存在逾期风险
+                    </div>
+                  )}
+                  {scheduleSummary.staffLoadWarnings.map((warning, idx) => (
+                    <div key={idx} className="schedule-warning overload">
+                      ⚠️ {warning.name} 在 {warning.date} 负载 {warning.hours} 小时，超出日限
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="schedule-summary-grid">
+                <div className="summary-item">
+                  <span className="summary-label">预估总工时</span>
+                  <span className="summary-value">{scheduleSummary.totalEstimatedHours} 小时</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">已排班工时</span>
+                  <span className="summary-value">{scheduleSummary.scheduledHours} 小时</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">待完成步骤</span>
+                  <span className="summary-value">{scheduleSummary.remainingSteps} 步</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">已排班项</span>
+                  <span className="summary-value">{scheduleSummary.scheduleItems.length} 项</span>
+                </div>
+                {scheduleSummary.firstScheduledDate && (
+                  <div className="summary-item">
+                    <span className="summary-label">最早排期</span>
+                    <span className="summary-value">{scheduleSummary.firstScheduledDate}</span>
+                  </div>
+                )}
+                {scheduleSummary.lastScheduledDate && (
+                  <div className="summary-item">
+                    <span className="summary-label">最晚排期</span>
+                    <span className={`summary-value ${scheduleSummary.isOverdueRisk ? 'overdue' : ''}`}>
+                      {scheduleSummary.lastScheduledDate}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {scheduleSummary.staffInvolved.length > 0 && (
+                <div className="staff-involved">
+                  <h4>参与修复人员</h4>
+                  <div className="staff-involved-list">
+                    {scheduleSummary.staffInvolved.map(([name, hours], idx) => (
+                      <span key={idx} className="staff-involved-item">
+                        👤 {name} ({hours}h)
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {scheduleSummary.scheduleItems.length > 0 && (
+                <div className="upcoming-schedule">
+                  <h4>后续排程</h4>
+                  <div className="upcoming-schedule-list">
+                    {scheduleSummary.scheduleItems
+                      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+                      .slice(0, 5)
+                      .map((item) => (
+                        <div key={item.id} className="upcoming-schedule-item">
+                          <span className="schedule-date">{item.scheduledDate}</span>
+                          <span className="schedule-step">{item.stepName}</span>
+                          <span className="schedule-staff">👤 {item.staffName}</span>
+                          <span className="schedule-hours">⏱ {item.estimatedHours}h</span>
+                        </div>
+                      ))}
+                    {scheduleSummary.scheduleItems.length > 5 && (
+                      <div className="more-schedule">还有 {scheduleSummary.scheduleItems.length - 5} 项排班...</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="detail-section">
             <h3>材料使用</h3>

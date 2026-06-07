@@ -1,5 +1,5 @@
-import type { RestorationProject, RestorationTemplate } from '../types';
-import { DEFAULT_TEMPLATES } from '../types';
+import type { RestorationProject, RestorationTemplate, RestorationStaff, ScheduleItem, ProjectSchedule, ScheduleData } from '../types';
+import { DEFAULT_TEMPLATES, DEFAULT_STEP_HOURS } from '../types';
 
 const STORAGE_KEY = 'ancient-book-restoration-projects';
 const TEMPLATE_STORAGE_KEY = 'ancient-book-restoration-templates';
@@ -272,4 +272,179 @@ function getDefaultTemplates(): RestorationTemplate[] {
 export function getDefaultTemplate(): RestorationTemplate | undefined {
   const templates = getTemplates();
   return templates.find(t => t.isDefault);
+}
+
+const SCHEDULE_STORAGE_KEY = 'ancient-book-restoration-schedule';
+
+export function generateStaffId(): string {
+  return `staff-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function generateScheduleItemId(): string {
+  return `sch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function getScheduleData(): ScheduleData {
+  try {
+    const data = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      return {
+        staff: Array.isArray(parsed.staff) ? parsed.staff : [],
+        schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
+        projectSchedules: Array.isArray(parsed.projectSchedules) ? parsed.projectSchedules : [],
+      };
+    }
+  } catch (e) {
+    console.error('Failed to load schedule data from storage:', e);
+  }
+  return getDefaultScheduleData();
+}
+
+export function saveScheduleData(data: ScheduleData): { success: boolean; error?: string } {
+  try {
+    const json = JSON.stringify(data);
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, json);
+    return { success: true };
+  } catch (e) {
+    const error = e as Error;
+    return { success: false, error: `保存失败：${error.message}` };
+  }
+}
+
+function getDefaultScheduleData(): ScheduleData {
+  const now = new Date().toISOString().split('T')[0];
+  return {
+    staff: [
+      {
+        id: 'staff-default-1',
+        name: '张修复师',
+        dailyWorkHours: 8,
+        skills: ['脱酸处理', '修补破损', '托裱加固'],
+        phone: '13800138001',
+        note: '高级修复师，擅长古籍脱酸和修补',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'staff-default-2',
+        name: '李修复师',
+        dailyWorkHours: 8,
+        skills: ['装订成册', '做函套', '压平整理'],
+        phone: '13800138002',
+        note: '擅长古籍装订和函套制作',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'staff-default-3',
+        name: '王修复师',
+        dailyWorkHours: 6,
+        skills: ['除尘清洁', '拍照记录', '消毒杀菌'],
+        phone: '13800138003',
+        note: '兼职，每周工作3天',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    schedules: [],
+    projectSchedules: [],
+  };
+}
+
+export function getStaff(): RestorationStaff[] {
+  return getScheduleData().staff;
+}
+
+export function saveStaff(staff: RestorationStaff[]): { success: boolean; error?: string } {
+  const data = getScheduleData();
+  return saveScheduleData({ ...data, staff });
+}
+
+export function getSchedules(): ScheduleItem[] {
+  return getScheduleData().schedules;
+}
+
+export function saveSchedules(schedules: ScheduleItem[]): { success: boolean; error?: string } {
+  const data = getScheduleData();
+  return saveScheduleData({ ...data, schedules });
+}
+
+export function getProjectSchedules(): ProjectSchedule[] {
+  return getScheduleData().projectSchedules;
+}
+
+export function saveProjectSchedules(projectSchedules: ProjectSchedule[]): { success: boolean; error?: string } {
+  const data = getScheduleData();
+  return saveScheduleData({ ...data, projectSchedules });
+}
+
+export function getProjectSchedule(projectId: string): ProjectSchedule | undefined {
+  return getScheduleData().projectSchedules.find(ps => ps.projectId === projectId);
+}
+
+export function getDefaultStepHours(stepName: string): number {
+  return DEFAULT_STEP_HOURS[stepName] || 3;
+}
+
+export function getProjectSchedulesWithDetails(projectId: string, projects: RestorationProject[]): {
+  projectSchedule: ProjectSchedule | null;
+  scheduleItems: ScheduleItem[];
+  isOverdueRisk: boolean;
+  staffLoadWarning: { staffId: string; date: string; hours: number; maxHours: number }[];
+} {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) {
+    return { projectSchedule: null, scheduleItems: [], isOverdueRisk: false, staffLoadWarning: [] };
+  }
+
+  const data = getScheduleData();
+  const projectSchedule = data.projectSchedules.find(ps => ps.projectId === projectId) || null;
+  const scheduleItems = data.schedules.filter(s => s.projectId === projectId);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deliveryDate = new Date(project.deliveryDate);
+  deliveryDate.setHours(0, 0, 0, 0);
+
+  let isOverdueRisk = false;
+  if (project.status !== 'delivered' && scheduleItems.length > 0) {
+    const incompleteItems = scheduleItems.filter(s => !s.completed);
+    if (incompleteItems.length > 0) {
+      const lastScheduledDate = new Date(
+        Math.max(...incompleteItems.map(s => new Date(s.scheduledDate).getTime()))
+      );
+      isOverdueRisk = lastScheduledDate > deliveryDate;
+    }
+  }
+
+  const staffLoadWarning: { staffId: string; date: string; hours: number; maxHours: number }[] = [];
+  const staffDailyHours = new Map<string, Map<string, number>>();
+
+  scheduleItems.forEach(item => {
+    if (!staffDailyHours.has(item.staffId)) {
+      staffDailyHours.set(item.staffId, new Map());
+    }
+    const dateMap = staffDailyHours.get(item.staffId)!;
+    const currentHours = dateMap.get(item.scheduledDate) || 0;
+    dateMap.set(item.scheduledDate, currentHours + item.estimatedHours);
+  });
+
+  data.staff.forEach(staff => {
+    const dateMap = staffDailyHours.get(staff.id);
+    if (dateMap) {
+      dateMap.forEach((hours, date) => {
+        if (hours > staff.dailyWorkHours) {
+          staffLoadWarning.push({
+            staffId: staff.id,
+            date,
+            hours,
+            maxHours: staff.dailyWorkHours,
+          });
+        }
+      });
+    }
+  });
+
+  return { projectSchedule, scheduleItems, isOverdueRisk, staffLoadWarning };
 }

@@ -10,8 +10,9 @@ import MaterialInventory from './components/MaterialInventory';
 import TemplateManager from './components/TemplateManager';
 import DeliveryCalendar from './components/DeliveryCalendar';
 import RestorationAssessmentComponent from './components/RestorationAssessment';
+import RestorationSchedule from './components/RestorationSchedule';
 
-type ViewMode = 'kanban' | 'list' | 'inventory' | 'calendar';
+type ViewMode = 'kanban' | 'list' | 'inventory' | 'calendar' | 'schedule';
 
 function App() {
   const [projects, setProjects] = useState<RestorationProject[]>(() => getProjects());
@@ -304,6 +305,12 @@ function App() {
             >
               交付日历
             </button>
+            <button
+              className={`view-btn ${viewMode === 'schedule' ? 'active' : ''}`}
+              onClick={() => setViewMode('schedule')}
+            >
+              修复排班
+            </button>
           </div>
 
           <div className="header-actions">
@@ -343,6 +350,12 @@ function App() {
         )}
         {viewMode === 'calendar' && (
           <DeliveryCalendar
+            projects={projects}
+            onSelectProject={setSelectedProject}
+          />
+        )}
+        {viewMode === 'schedule' && (
+          <RestorationSchedule
             projects={projects}
             onSelectProject={setSelectedProject}
           />

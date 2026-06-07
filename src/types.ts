@@ -301,3 +301,67 @@ export const DEFAULT_TEMPLATES: Omit<RestorationTemplate, 'id' | 'createdAt' | '
     ],
   },
 ];
+
+export interface RestorationStaff {
+  id: string;
+  name: string;
+  dailyWorkHours: number;
+  skills: string[];
+  phone?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepWorkEstimate {
+  stepName: string;
+  estimatedHours: number;
+  assignedStaffId: string | null;
+  scheduledDate: string | null;
+}
+
+export interface ScheduleItem {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  stepName: string;
+  staffId: string;
+  staffName: string;
+  scheduledDate: string;
+  estimatedHours: number;
+  completed: boolean;
+  completedDate?: string;
+  note?: string;
+}
+
+export interface ProjectSchedule {
+  projectId: string;
+  stepEstimates: StepWorkEstimate[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleData {
+  staff: RestorationStaff[];
+  schedules: ScheduleItem[];
+  projectSchedules: ProjectSchedule[];
+}
+
+export const DEFAULT_STEP_HOURS: Record<string, number> = {
+  '登记建档': 1,
+  '拍照记录': 2,
+  '除尘清洁': 2,
+  '消毒杀菌': 3,
+  '水渍清洗': 4,
+  '霉斑清除': 4,
+  '脱酸处理': 3,
+  '丝网加固': 5,
+  '逐页修补': 6,
+  '修补破损': 5,
+  '托裱加固': 4,
+  '压平整理': 2,
+  '装订成册': 3,
+  '做函套': 4,
+  '拍照存档': 2,
+  '消毒杀虫': 3,
+};
