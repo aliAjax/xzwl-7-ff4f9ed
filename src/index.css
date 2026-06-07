@@ -198,6 +198,17 @@ body {
   background: var(--bg-dark);
 }
 
+.btn-outline {
+  background: transparent;
+  color: var(--ink-color);
+  border: 2px dashed var(--border-color);
+}
+
+.btn-outline:hover {
+  background: var(--paper-color);
+  border-color: var(--accent-color);
+}
+
 .btn-danger {
   background: var(--urgency-overdue);
   color: white;

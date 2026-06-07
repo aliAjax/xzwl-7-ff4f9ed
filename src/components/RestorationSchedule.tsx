@@ -164,6 +164,235 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     }
   };
 
+  const calculateBackwardSchedule = (project: RestorationProject): StepWorkEstimate[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deliveryDate = new Date(project.deliveryDate);
+    deliveryDate.setHours(0, 0, 0, 0);
+
+    const incompleteSteps = project.restorationSteps
+      .map((step, idx) => ({ ...step, idx }))
+      .filter(s => !s.completed);
+
+    if (incompleteSteps.length === 0) {
+      return project.restorationSteps.map((step) => ({
+        stepName: step.name,
+        estimatedHours: getDefaultStepHours(step.name),
+        assignedStaffId: null,
+        scheduledDate: step.completed ? (step.date || null) : null,
+      }));
+    }
+
+    const totalHours = incompleteSteps.reduce(
+      (sum, s) => sum + getDefaultStepHours(s.name),
+      0
+    );
+    const avgDailyHours = staff.length > 0
+      ? staff.reduce((sum, s) => sum + s.dailyWorkHours, 0) / staff.length
+      : 6;
+    let estimatedDays = Math.ceil(totalHours / avgDailyHours);
+    estimatedDays = Math.max(estimatedDays, incompleteSteps.length);
+
+    let currentDate = new Date(deliveryDate);
+    const stepEstimates: StepWorkEstimate[] = project.restorationSteps.map(step => ({
+      stepName: step.name,
+      estimatedHours: getDefaultStepHours(step.name),
+      assignedStaffId: null,
+      scheduledDate: step.completed ? (step.date || null) : null,
+    }));
+
+    for (let i = incompleteSteps.length - 1; i >= 0; i--) {
+      const step = incompleteSteps[i];
+      const stepHours = getDefaultStepHours(step.name);
+      const daysNeeded = Math.max(1, Math.ceil(stepHours / avgDailyHours));
+
+      for (let d = daysNeeded - 1; d >= 0; d--) {
+        const scheduleDate = new Date(currentDate);
+        scheduleDate.setDate(scheduleDate.getDate() - d);
+        
+        if (scheduleDate < today) {
+          scheduleDate.setTime(today.getTime());
+        }
+        
+        if (d === 0) {
+          stepEstimates[step.idx].scheduledDate = scheduleDate.toISOString().split('T')[0];
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() - daysNeeded);
+    }
+
+    const earliestDate = new Date(Math.min(
+      ...incompleteSteps
+        .map(s => stepEstimates[s.idx].scheduledDate)
+        .filter(Boolean)
+        .map(d => new Date(d!).getTime()),
+      today.getTime()
+    ));
+
+    if (earliestDate < today) {
+      const daysToShift = Math.ceil((today.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24));
+      incompleteSteps.forEach(step => {
+        if (stepEstimates[step.idx].scheduledDate) {
+          const d = new Date(stepEstimates[step.idx].scheduledDate!);
+          d.setDate(d.getDate() + daysToShift);
+          stepEstimates[step.idx].scheduledDate = d.toISOString().split('T')[0];
+        }
+      });
+    }
+
+    return stepEstimates;
+  };
+
+  const autoAssignStaffToSteps = (
+    project: RestorationProject,
+    stepEstimates: StepWorkEstimate[]
+  ): StepWorkEstimate[] => {
+    if (staff.length === 0) return stepEstimates;
+
+    const incompleteSteps = project.restorationSteps
+      .map((step, idx) => ({ ...step, idx }))
+      .filter(s => !s.completed);
+
+    const dateStaffLoad = new Map<string, Map<string, number>>();
+    schedules.forEach(item => {
+      if (!item.completed) {
+        if (!dateStaffLoad.has(item.scheduledDate)) {
+          dateStaffLoad.set(item.scheduledDate, new Map());
+        }
+        const staffMap = dateStaffLoad.get(item.scheduledDate)!;
+        staffMap.set(item.staffId, (staffMap.get(item.staffId) || 0) + item.estimatedHours);
+      }
+    });
+
+    const staffTotalLoad = new Map<string, number>();
+    schedules.forEach(item => {
+      if (!item.completed) {
+        staffTotalLoad.set(item.staffId, (staffTotalLoad.get(item.staffId) || 0) + item.estimatedHours);
+      }
+    });
+
+    const updatedEstimates = [...stepEstimates];
+
+    incompleteSteps.forEach(step => {
+      const estimate = updatedEstimates[step.idx];
+      if (!estimate.scheduledDate || estimate.assignedStaffId) return;
+
+      const stepHours = estimate.estimatedHours;
+      const date = estimate.scheduledDate;
+
+      if (!dateStaffLoad.has(date)) {
+        dateStaffLoad.set(date, new Map());
+      }
+      const staffLoad = dateStaffLoad.get(date)!;
+
+      let bestStaff: RestorationStaff | null = null;
+      let minScore = Infinity;
+
+      staff.forEach(s => {
+        const currentLoad = staffLoad.get(s.id) || 0;
+        const totalLoad = staffTotalLoad.get(s.id) || 0;
+        const newLoad = currentLoad + stepHours;
+        
+        if (newLoad <= s.dailyWorkHours) {
+          const score = currentLoad * 2 + totalLoad * 0.5;
+          if (score < minScore) {
+            bestStaff = s;
+            minScore = score;
+          }
+        }
+      });
+
+      if (!bestStaff) {
+        let minOverloadScore = Infinity;
+        staff.forEach(s => {
+          const currentLoad = staffLoad.get(s.id) || 0;
+          const totalLoad = staffTotalLoad.get(s.id) || 0;
+          const newLoad = currentLoad + stepHours;
+          const overload = Math.max(0, newLoad - s.dailyWorkHours);
+          const score = overload * 10 + currentLoad + totalLoad * 0.5;
+          
+          if (score < minOverloadScore) {
+            bestStaff = s;
+            minOverloadScore = score;
+          }
+        });
+      }
+
+      if (bestStaff) {
+        const selectedStaff = bestStaff as RestorationStaff;
+        updatedEstimates[step.idx] = {
+          ...estimate,
+          assignedStaffId: selectedStaff.id,
+        };
+        const currentLoad = staffLoad.get(selectedStaff.id) || 0;
+        staffLoad.set(selectedStaff.id, currentLoad + stepHours);
+        staffTotalLoad.set(selectedStaff.id, (staffTotalLoad.get(selectedStaff.id) || 0) + stepHours);
+      }
+    });
+
+    return updatedEstimates;
+  };
+
+  const autoScheduleProject = (project: RestorationProject, mode: 'forward' | 'backward' = 'backward') => {
+    const existing = getProjectSchedule(project.id);
+    
+    let stepEstimates: StepWorkEstimate[];
+    
+    if (mode === 'backward') {
+      stepEstimates = calculateBackwardSchedule(project);
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let currentDate = new Date(today);
+      
+      stepEstimates = project.restorationSteps.map(step => {
+        let scheduledDate: string | null = null;
+        if (!step.completed) {
+          scheduledDate = currentDate.toISOString().split('T')[0];
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return {
+          stepName: step.name,
+          estimatedHours: getDefaultStepHours(step.name),
+          assignedStaffId: null,
+          scheduledDate,
+        };
+      });
+    }
+
+    stepEstimates = autoAssignStaffToSteps(project, stepEstimates);
+
+    const now = new Date().toISOString().split('T')[0];
+    
+    const modeText = mode === 'backward' ? '倒排模式' : '顺排模式';
+    
+    if (existing) {
+      const updatedProjectSchedules = projectSchedules.map(ps => {
+        if (ps.projectId !== project.id) return ps;
+        return { ...ps, stepEstimates, updatedAt: now };
+      });
+      setProjectSchedules(updatedProjectSchedules);
+      const result = saveScheduleData({ staff, schedules, projectSchedules: updatedProjectSchedules });
+      if (result.success) {
+        setMessage({ type: 'success', text: `自动排班完成（${modeText}）` });
+      }
+    } else {
+      const newProjectSchedule: ProjectSchedule = {
+        projectId: project.id,
+        stepEstimates,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const updatedProjectSchedules = [...projectSchedules, newProjectSchedule];
+      setProjectSchedules(updatedProjectSchedules);
+      const result = saveScheduleData({ staff, schedules, projectSchedules: updatedProjectSchedules });
+      if (result.success) {
+        setMessage({ type: 'success', text: `自动排班完成（${modeText}）` });
+      }
+    }
+  };
+
   const handleStepEstimateChange = (
     projectId: string,
     stepIndex: number,
@@ -245,15 +474,82 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
 
   const getProjectRisks = (project: RestorationProject) => {
     const items = getProjectScheduleItems(project.id).filter(s => !s.completed);
+    const projectSchedule = getProjectSchedule(project.id);
 
     const risks: { type: 'overdue' | 'overload'; message: string }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deliveryDate = new Date(project.deliveryDate);
+    deliveryDate.setHours(0, 0, 0, 0);
+    const daysUntilDelivery = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (projectSchedule) {
+      const incompleteEstimates = projectSchedule.stepEstimates.filter(
+        (_est, idx) => !project.restorationSteps[idx].completed
+      );
+      
+      const scheduledDates = incompleteEstimates.filter(e => e.scheduledDate);
+      const unscheduledCount = incompleteEstimates.length - scheduledDates.length;
+      
+      if (unscheduledCount > 0 && daysUntilDelivery < 7 && daysUntilDelivery >= 0) {
+        risks.push({
+          type: 'overdue',
+          message: `距离交付还有 ${daysUntilDelivery} 天，还有 ${unscheduledCount} 个步骤未安排`,
+        });
+      }
+
+      const totalHours = incompleteEstimates.reduce((sum, e) => sum + e.estimatedHours, 0);
+      const totalStaffHours = staff.reduce((sum, s) => sum + s.dailyWorkHours, 0);
+      const minDaysNeeded = Math.ceil(totalHours / Math.max(totalStaffHours, 1));
+      
+      if (minDaysNeeded > daysUntilDelivery && daysUntilDelivery >= 0) {
+        risks.push({
+          type: 'overdue',
+          message: `按当前人员配置，最少需要 ${minDaysNeeded} 天完成，但距交付仅 ${daysUntilDelivery} 天`,
+        });
+      }
+
+      const estimatedDates = scheduledDates.map(e => new Date(e.scheduledDate!).getTime());
+      if (estimatedDates.length > 0) {
+        const lastEstimatedDate = new Date(Math.max(...estimatedDates));
+        if (lastEstimatedDate > deliveryDate) {
+          const overDays = Math.ceil((lastEstimatedDate.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
+          risks.push({
+            type: 'overdue',
+            message: `预估完成日期 ${lastEstimatedDate.toISOString().split('T')[0]} 超出交付日期 ${overDays} 天`,
+          });
+        }
+      }
+
+      const estimateStaffDailyHours = new Map<string, Map<string, number>>();
+      incompleteEstimates.forEach(est => {
+        if (!est.assignedStaffId || !est.scheduledDate) return;
+        if (!estimateStaffDailyHours.has(est.assignedStaffId)) {
+          estimateStaffDailyHours.set(est.assignedStaffId, new Map());
+        }
+        const dateMap = estimateStaffDailyHours.get(est.assignedStaffId)!;
+        dateMap.set(est.scheduledDate, (dateMap.get(est.scheduledDate) || 0) + est.estimatedHours);
+      });
+
+      estimateStaffDailyHours.forEach((dateMap, staffId) => {
+        const staffMember = staff.find(s => s.id === staffId);
+        if (!staffMember) return;
+        dateMap.forEach((hours, date) => {
+          if (hours > staffMember.dailyWorkHours) {
+            risks.push({
+              type: 'overload',
+              message: `${staffMember.name} 在 ${date} 预估负载 ${hours} 小时，超出日限 ${staffMember.dailyWorkHours} 小时`,
+            });
+          }
+        });
+      });
+    }
 
     if (items.length > 0) {
       const lastDate = new Date(Math.max(...items.map(i => new Date(i.scheduledDate).getTime())));
-      const deliveryDate = new Date(project.deliveryDate);
       if (lastDate > deliveryDate) {
         const overDays = Math.ceil((lastDate.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
-        risks.push({ type: 'overdue', message: `预估完成日期超出交付日期 ${overDays} 天，存在逾期风险` });
+        risks.push({ type: 'overdue', message: `已排班预估完成日期超出交付日期 ${overDays} 天` });
       }
     }
 
@@ -600,10 +896,22 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                             <div className="schedule-actions">
                               <p className="text-muted">该项目尚未初始化排班</p>
                               <button
-                                className="btn btn-primary"
+                                className="btn btn-secondary"
                                 onClick={() => initializeProjectSchedule(project)}
                               >
-                                初始化排班
+                                手动初始化
+                              </button>
+                              <button
+                                className="btn btn-primary"
+                                onClick={() => autoScheduleProject(project, 'backward')}
+                              >
+                                🤖 自动排班（倒排）
+                              </button>
+                              <button
+                                className="btn btn-outline"
+                                onClick={() => autoScheduleProject(project, 'forward')}
+                              >
+                                🤖 自动排班（顺排）
                               </button>
                             </div>
                           ) : (
@@ -706,6 +1014,18 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                                   onClick={() => generateSchedules(project)}
                                 >
                                   ✓ 生成排班
+                                </button>
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => autoScheduleProject(project, 'backward')}
+                                >
+                                  🔄 重新倒排
+                                </button>
+                                <button
+                                  className="btn btn-outline"
+                                  onClick={() => autoScheduleProject(project, 'forward')}
+                                >
+                                  🔄 重新顺排
                                 </button>
                                 <button
                                   className="btn btn-secondary"
