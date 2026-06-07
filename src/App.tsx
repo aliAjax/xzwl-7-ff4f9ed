@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { RestorationProject, ProjectStatus, ImageRecord } from './types';
-import { getProjects, saveProjects, generateId } from './utils/storage';
+import type { RestorationProject, ProjectStatus, ImageRecord, RestorationAssessment } from './types';
+import { getProjects, saveProjects, generateId, getTemplates } from './utils/storage';
 import KanbanBoard from './components/KanbanBoard';
 import ProjectList from './components/ProjectList';
 import ProjectDetail from './components/ProjectDetail';
@@ -9,6 +9,7 @@ import BatchImport from './components/BatchImport';
 import MaterialInventory from './components/MaterialInventory';
 import TemplateManager from './components/TemplateManager';
 import DeliveryCalendar from './components/DeliveryCalendar';
+import RestorationAssessmentComponent from './components/RestorationAssessment';
 
 type ViewMode = 'kanban' | 'list' | 'inventory' | 'calendar';
 
@@ -19,6 +20,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [showBatchImport, setShowBatchImport] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
   const [editingProject, setEditingProject] = useState<RestorationProject | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -178,6 +180,57 @@ function App() {
     }
   };
 
+  const handleStartAssessment = () => {
+    setShowAssessment(true);
+  };
+
+  const handleSaveAssessment = (assessment: RestorationAssessment, advanceStatus: boolean): { success: boolean; error?: string } => {
+    if (!selectedProject) return { success: false, error: '未选择项目' };
+
+    const now = new Date().toISOString().split('T')[0];
+    const allTemplates = getTemplates();
+
+    let restorationSteps = selectedProject.restorationSteps;
+    if (assessment.recommendedTemplateId) {
+      const recommendedTemplate = allTemplates.find(t => t.id === assessment.recommendedTemplateId);
+      if (recommendedTemplate) {
+        restorationSteps = recommendedTemplate.steps.map(step => ({
+          name: step,
+          completed: false,
+        }));
+      }
+    }
+
+    const materialsUsed = assessment.materialEstimates.map(m => ({
+      ...m,
+      quantity: m.quantity,
+    }));
+
+    const updatedProject: RestorationProject = {
+      ...selectedProject,
+      assessment,
+      restorationSteps,
+      materialsUsed,
+      currentProgress: advanceStatus ? 0 : selectedProject.currentProgress,
+      status: advanceStatus ? 'in-restoration' : selectedProject.status,
+      updatedAt: now,
+    };
+
+    const updatedProjects = projects.map(p =>
+      p.id === selectedProject.id ? updatedProject : p
+    );
+
+    const saveResult = saveProjects(updatedProjects);
+    if (!saveResult.success) {
+      return saveResult;
+    }
+
+    setProjects(updatedProjects);
+    setSelectedProject(updatedProject);
+    setShowAssessment(false);
+    return { success: true };
+  };
+
   const getStats = () => {
     const total = projects.length;
     const inProgress = projects.filter(p => p.status !== 'delivered' && p.status !== 'pending-evaluation').length;
@@ -296,7 +349,7 @@ function App() {
         )}
       </main>
 
-      {selectedProject && !showForm && (
+      {selectedProject && !showForm && !showAssessment && (
         <ProjectDetail
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
@@ -304,6 +357,15 @@ function App() {
           onDelete={handleDeleteProject}
           onStepToggle={handleStepToggle}
           onUpdateImageRecords={handleUpdateImageRecords}
+          onStartAssessment={handleStartAssessment}
+        />
+      )}
+
+      {selectedProject && showAssessment && (
+        <RestorationAssessmentComponent
+          project={selectedProject}
+          onClose={() => setShowAssessment(false)}
+          onSaveAssessment={handleSaveAssessment}
         />
       )}
 

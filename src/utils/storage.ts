@@ -13,6 +13,7 @@ export function getProjects(): RestorationProject[] {
         return parsed.map(p => ({
           ...p,
           imageRecords: p.imageRecords || [],
+          assessment: p.assessment || undefined,
         }));
       }
     }
@@ -28,6 +29,10 @@ export function generateId(): string {
 
 export function generateImageRecordId(): string {
   return `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function generateAssessmentId(): string {
+  return `asm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 export function getStorageRemainingSpace(): number {

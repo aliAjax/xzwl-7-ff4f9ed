@@ -1,5 +1,5 @@
 import type { RestorationProject, ImageRecord } from '../types';
-import { STATUS_LABELS } from '../types';
+import { STATUS_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
 import ImageRecordsManager from './ImageRecordsManager';
 
 interface ProjectDetailProps {
@@ -9,9 +9,10 @@ interface ProjectDetailProps {
   onDelete: () => void;
   onStepToggle: (stepIndex: number) => void;
   onUpdateImageRecords: (records: ImageRecord[]) => { success: boolean; error?: string };
+  onStartAssessment: () => void;
 }
 
-export default function ProjectDetail({ project, onClose, onEdit, onDelete, onStepToggle, onUpdateImageRecords }: ProjectDetailProps) {
+export default function ProjectDetail({ project, onClose, onEdit, onDelete, onStepToggle, onUpdateImageRecords, onStartAssessment }: ProjectDetailProps) {
   const getDaysUntilDelivery = (deliveryDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -38,6 +39,11 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
             </span>
           </div>
           <div className="header-actions">
+            {project.status === 'pending-evaluation' && (
+              <button className="btn btn-primary" onClick={onStartAssessment}>
+                📋 修复评估
+              </button>
+            )}
             <button className="btn btn-secondary" onClick={onEdit}>编辑</button>
             <button className="btn btn-danger" onClick={onDelete}>删除</button>
             <button className="btn btn-close" onClick={onClose}>×</button>
@@ -82,6 +88,73 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
               ))}
             </div>
           </div>
+
+          {project.assessment && (
+            <div className="detail-section assessment-display">
+              <h3>修复评估单</h3>
+              <div className="assessment-completed-badge">✓ 评估已完成 · {project.assessment.completedAt}</div>
+              
+              <div className="assessment-grid">
+                <div className="assessment-item">
+                  <span className="assessment-label">纸张状态</span>
+                  <span className="assessment-value">{PAPER_CONDITION_LABELS[project.assessment.paperCondition]}</span>
+                </div>
+                <div className="assessment-item">
+                  <span className="assessment-label">破损严重度</span>
+                  <span className="assessment-value">{DAMAGE_SEVERITY_LABELS[project.assessment.damageSeverity]}</span>
+                </div>
+                <div className="assessment-item">
+                  <span className="assessment-label">装帧情况</span>
+                  <span className="assessment-value">{BINDING_CONDITION_LABELS[project.assessment.bindingCondition]}</span>
+                </div>
+              </div>
+
+              {project.assessment.pollutionTypes.length > 0 && (
+                <div className="assessment-item full-width">
+                  <span className="assessment-label">污染类型</span>
+                  <div className="pollution-tags">
+                    {project.assessment.pollutionTypes.map(type => (
+                      <span key={type} className="pollution-tag">{POLLUTION_TYPE_LABELS[type]}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {project.assessment.repairSuggestion && (
+                <div className="assessment-item full-width">
+                  <span className="assessment-label">修复建议</span>
+                  <p className="assessment-text">{project.assessment.repairSuggestion}</p>
+                </div>
+              )}
+
+              <div className="assessment-item full-width">
+                <span className="assessment-label">预计工期</span>
+                <span className="assessment-value highlight">{project.assessment.estimatedDuration}</span>
+              </div>
+
+              <div className="assessment-item full-width">
+                <span className="assessment-label">材料预估</span>
+                <table className="materials-table compact">
+                  <thead>
+                    <tr>
+                      <th>材料名称</th>
+                      <th>预估数量</th>
+                      <th>单位</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {project.assessment.materialEstimates.map((material, index) => (
+                      <tr key={index}>
+                        <td>{material.name}</td>
+                        <td>{material.quantity}</td>
+                        <td>{material.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="detail-section">
             <h3>修复进度</h3>

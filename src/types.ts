@@ -7,6 +7,136 @@ export type ProjectStatus =
 
 export type RestorationStage = 'before-restoration' | 'during-restoration' | 'after-restoration';
 
+export type PaperCondition = 
+  | 'excellent'
+  | 'good'
+  | 'fair'
+  | 'poor'
+  | 'very-poor';
+
+export type DamageSeverity = 
+  | 'mild'
+  | 'moderate'
+  | 'severe'
+  | 'critical';
+
+export type PollutionType = 
+  | 'mold'
+  | 'water-stain'
+  | 'dirt'
+  | 'dust'
+  | 'smoke'
+  | 'ink-stain'
+  | 'other';
+
+export type BindingCondition = 
+  | 'intact'
+  | 'loose'
+  | 'detached'
+  | 'pages-missing'
+  | 'needs-rebinding';
+
+export const PAPER_CONDITION_LABELS: Record<PaperCondition, string> = {
+  'excellent': '完好',
+  'good': '轻微老化',
+  'fair': '中度老化',
+  'poor': '严重老化',
+  'very-poor': '脆化严重',
+};
+
+export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
+  'mild': '轻度',
+  'moderate': '中度',
+  'severe': '重度',
+  'critical': '极重',
+};
+
+export const POLLUTION_TYPE_LABELS: Record<PollutionType, string> = {
+  'mold': '霉斑',
+  'water-stain': '水渍',
+  'dirt': '污渍',
+  'dust': '灰尘',
+  'smoke': '烟熏',
+  'ink-stain': '墨迹',
+  'other': '其他',
+};
+
+export const BINDING_CONDITION_LABELS: Record<BindingCondition, string> = {
+  'intact': '完好',
+  'loose': '松动',
+  'detached': '脱线',
+  'pages-missing': '散页',
+  'needs-rebinding': '需重装',
+};
+
+export interface MaterialEstimate {
+  name: string;
+  quantity: string;
+  unit: string;
+}
+
+export interface RestorationAssessment {
+  id: string;
+  paperCondition: PaperCondition;
+  damageSeverity: DamageSeverity;
+  pollutionTypes: PollutionType[];
+  bindingCondition: BindingCondition;
+  repairSuggestion: string;
+  recommendedTemplateId: string;
+  estimatedDuration: string;
+  materialEstimates: MaterialEstimate[];
+  createdAt: string;
+  completedAt: string;
+}
+
+export const DAMAGE_TYPE_TO_TEMPLATE: Record<string, string> = {
+  '虫蛀': 'tpl-default-3',
+  '鼠啮': 'tpl-default-3',
+  '水渍': 'tpl-default-2',
+  '霉斑': 'tpl-default-2',
+  '酸化': 'tpl-default-1',
+  '脱线': 'tpl-default-1',
+  '脱页': 'tpl-default-1',
+  '破损': 'tpl-default-1',
+  '撕裂': 'tpl-default-3',
+  '污渍': 'tpl-default-2',
+  '焦脆': 'tpl-default-3',
+  '粘连': 'tpl-default-2',
+};
+
+export const SEVERITY_DURATION_ESTIMATE: Record<DamageSeverity, string> = {
+  'mild': '7-10天',
+  'moderate': '15-20天',
+  'severe': '25-35天',
+  'critical': '40-60天',
+};
+
+export const MATERIAL_ESTIMATES: Record<string, MaterialEstimate[]> = {
+  'tpl-default-1': [
+    { name: '皮纸', quantity: '50', unit: '张' },
+    { name: '浆糊', quantity: '200', unit: '克' },
+    { name: '脱酸液', quantity: '500', unit: '毫升' },
+    { name: '棉线', quantity: '30', unit: '米' },
+  ],
+  'tpl-default-2': [
+    { name: '皮纸', quantity: '100', unit: '张' },
+    { name: '浆糊', quantity: '400', unit: '克' },
+    { name: '脱酸液', quantity: '1000', unit: '毫升' },
+    { name: '清洗剂', quantity: '300', unit: '毫升' },
+    { name: '杀菌剂', quantity: '200', unit: '毫升' },
+    { name: '棉线', quantity: '50', unit: '米' },
+  ],
+  'tpl-default-3': [
+    { name: '皮纸', quantity: '150', unit: '张' },
+    { name: '绫绢', quantity: '10', unit: '米' },
+    { name: '浆糊', quantity: '600', unit: '克' },
+    { name: '脱酸液', quantity: '1000', unit: '毫升' },
+    { name: '丝网', quantity: '20', unit: '米' },
+    { name: '杀虫剂', quantity: '200', unit: '毫升' },
+    { name: '棉线', quantity: '80', unit: '米' },
+  ],
+};
+
 export interface ImageRecord {
   id: string;
   stage: RestorationStage;
@@ -56,6 +186,7 @@ export interface RestorationProject {
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  assessment?: RestorationAssessment;
 }
 
 export const STATUS_LABELS: Record<ProjectStatus, string> = {
