@@ -37,11 +37,16 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
         if (materialMap.has(key)) {
           const existing = materialMap.get(key)!;
           existing.totalQuantity += quantity;
-          existing.projectCount += 1;
+          
+          const projectAlreadyExists = existing.relatedProjects.some(p => p.id === project.id);
+          if (!projectAlreadyExists) {
+            existing.projectCount += 1;
+            existing.relatedProjects.push(project);
+          }
+          
           if (new Date(useDate) > new Date(existing.lastUsedDate)) {
             existing.lastUsedDate = useDate;
           }
-          existing.relatedProjects.push(project);
         } else {
           materialMap.set(key, {
             name: material.name,
