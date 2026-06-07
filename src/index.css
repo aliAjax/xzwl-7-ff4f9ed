@@ -1102,3 +1102,140 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.inventory-header {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-dark);
+  align-items: center;
+}
+
+.inventory-stats {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.inventory-stat {
+  text-align: center;
+  padding: 0 12px;
+}
+
+.inventory-stat .stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary-color);
+  line-height: 1.2;
+}
+
+.inventory-stat .stat-label {
+  font-size: 12px;
+  color: var(--ink-light);
+}
+
+.quantity-value {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.project-count-badge {
+  display: inline-block;
+  background: var(--accent-light);
+  color: var(--primary-dark);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.days-since {
+  color: var(--ink-light);
+  font-size: 13px;
+}
+
+.days-since.stale {
+  color: var(--urgency-medium);
+}
+
+.material-row:hover {
+  background: var(--bg-dark);
+}
+
+.related-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.related-project-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--bg-dark);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.related-project-item:hover {
+  background: var(--bg-color);
+  border-color: var(--border-color);
+  transform: translateX(4px);
+}
+
+.project-info-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.related-project-title {
+  font-weight: 600;
+  color: var(--ink-color);
+  font-size: 15px;
+}
+
+.project-info-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--ink-light);
+}
+
+.usage-amount {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.project-date {
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .inventory-header {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .inventory-stats {
+    justify-content: center;
+  }
+
+  .related-project-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .project-info-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

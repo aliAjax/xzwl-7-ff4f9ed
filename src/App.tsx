@@ -6,8 +6,9 @@ import ProjectList from './components/ProjectList';
 import ProjectDetail from './components/ProjectDetail';
 import ProjectForm from './components/ProjectForm';
 import BatchImport from './components/BatchImport';
+import MaterialInventory from './components/MaterialInventory';
 
-type ViewMode = 'kanban' | 'list';
+type ViewMode = 'kanban' | 'list' | 'inventory';
 
 function App() {
   const [projects, setProjects] = useState<RestorationProject[]>(() => getProjects());
@@ -203,6 +204,12 @@ function App() {
             >
               列表视图
             </button>
+            <button
+              className={`view-btn ${viewMode === 'inventory' ? 'active' : ''}`}
+              onClick={() => setViewMode('inventory')}
+            >
+              材料台账
+            </button>
           </div>
 
           <div className="header-actions">
@@ -217,17 +224,24 @@ function App() {
       </header>
 
       <main className="app-main">
-        {viewMode === 'kanban' ? (
+        {viewMode === 'kanban' && (
           <KanbanBoard
             projects={projects}
             onStatusChange={handleStatusChange}
             onSelectProject={setSelectedProject}
           />
-        ) : (
+        )}
+        {viewMode === 'list' && (
           <ProjectList
             projects={projects}
             onSelectProject={setSelectedProject}
             onStatusChange={handleStatusChange}
+          />
+        )}
+        {viewMode === 'inventory' && (
+          <MaterialInventory
+            projects={projects}
+            onSelectProject={setSelectedProject}
           />
         )}
       </main>
