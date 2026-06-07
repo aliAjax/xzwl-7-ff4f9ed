@@ -5,6 +5,7 @@ import KanbanBoard from './components/KanbanBoard';
 import ProjectList from './components/ProjectList';
 import ProjectDetail from './components/ProjectDetail';
 import ProjectForm from './components/ProjectForm';
+import BatchImport from './components/BatchImport';
 
 type ViewMode = 'kanban' | 'list';
 
@@ -13,6 +14,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [selectedProject, setSelectedProject] = useState<RestorationProject | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showBatchImport, setShowBatchImport] = useState(false);
   const [editingProject, setEditingProject] = useState<RestorationProject | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -117,6 +119,22 @@ function App() {
     setShowForm(true);
   };
 
+  const handleBatchImport = () => {
+    setShowBatchImport(true);
+  };
+
+  const handleBatchSave = (newProjects: Omit<RestorationProject, 'id' | 'createdAt' | 'updatedAt'>[]) => {
+    const now = new Date().toISOString().split('T')[0];
+    const projectsToAdd: RestorationProject[] = newProjects.map(p => ({
+      ...p,
+      id: generateId(),
+      createdAt: now,
+      updatedAt: now,
+    }));
+    setProjects(prevProjects => [...prevProjects, ...projectsToAdd]);
+    setShowBatchImport(false);
+  };
+
   const handleEditProject = () => {
     if (selectedProject) {
       setEditingProject(selectedProject);
@@ -187,9 +205,14 @@ function App() {
             </button>
           </div>
 
-          <button className="btn btn-primary btn-new" onClick={handleNewProject}>
-            + 新建项目
-          </button>
+          <div className="header-actions">
+            <button className="btn btn-secondary btn-import" onClick={handleBatchImport}>
+              ↑ 批量导入
+            </button>
+            <button className="btn btn-primary btn-new" onClick={handleNewProject}>
+              + 新建项目
+            </button>
+          </div>
         </nav>
       </header>
 
@@ -227,6 +250,13 @@ function App() {
             setEditingProject(null);
           }}
           onSave={handleSaveProject}
+        />
+      )}
+
+      {showBatchImport && (
+        <BatchImport
+          onClose={() => setShowBatchImport(false)}
+          onSave={handleBatchSave}
         />
       )}
     </div>
