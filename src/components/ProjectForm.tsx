@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { RestorationProject, ProjectStatus, RestorationStep, MaterialUsage } from '../types';
+import type { RestorationProject, ProjectStatus, RestorationStep, MaterialUsage, RestorationTemplate } from '../types';
 import { DAMAGE_TYPES, DEFAULT_RESTORATION_STEPS, STATUS_LABELS } from '../types';
+import { getTemplates, getDefaultTemplate } from '../utils/storage';
 
 interface ProjectFormProps {
   project?: RestorationProject;
@@ -20,6 +21,12 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
   const [restorationSteps, setRestorationSteps] = useState<RestorationStep[]>([]);
   const [materialsUsed, setMaterialsUsed] = useState<MaterialUsage[]>([]);
   const [newMaterial, setNewMaterial] = useState({ name: '', quantity: '', unit: '' });
+  const [templates, setTemplates] = useState<RestorationTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+
+  useEffect(() => {
+    setTemplates(getTemplates());
+  }, []);
 
   useEffect(() => {
     if (project) {
@@ -35,6 +42,40 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
       const today = new Date();
       const defaultDate = new Date(today.setDate(today.getDate() + 30));
       setDeliveryDate(defaultDate.toISOString().split('T')[0]);
+
+      const defaultTemplate = getDefaultTemplate();
+      if (defaultTemplate) {
+        setSelectedTemplateId(defaultTemplate.id);
+        setRestorationSteps(
+          defaultTemplate.steps.map(name => ({
+            name,
+            completed: false,
+          }))
+        );
+      } else {
+        setRestorationSteps(
+          DEFAULT_RESTORATION_STEPS.map(name => ({
+            name,
+            completed: false,
+          }))
+        );
+      }
+    }
+  }, [project]);
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (templateId) {
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setRestorationSteps(
+          template.steps.map(name => ({
+            name,
+            completed: false,
+          }))
+        );
+      }
+    } else {
       setRestorationSteps(
         DEFAULT_RESTORATION_STEPS.map(name => ({
           name,
@@ -42,7 +83,7 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
         }))
       );
     }
-  }, [project]);
+  };
 
   const handleDamageTypeToggle = (type: string) => {
     if (damageTypes.includes(type)) {
@@ -145,6 +186,26 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
               />
             </div>
           </div>
+
+          {!isEditing && (
+            <div className="form-group">
+              <label>修复流程模板</label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+              >
+                <option value="">-- 不使用模板（默认步骤）--</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} {template.isDefault ? '（默认）' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="form-hint">
+                选择模板后将自动填充对应的修复步骤，您仍可手动调整
+              </p>
+            </div>
+          )}
 
           <div className="form-group">
             <label>破损类型</label>

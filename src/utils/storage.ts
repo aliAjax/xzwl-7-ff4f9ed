@@ -1,6 +1,8 @@
-import type { RestorationProject } from '../types';
+import type { RestorationProject, RestorationTemplate } from '../types';
+import { DEFAULT_TEMPLATES } from '../types';
 
 const STORAGE_KEY = 'ancient-book-restoration-projects';
+const TEMPLATE_STORAGE_KEY = 'ancient-book-restoration-templates';
 
 export function getProjects(): RestorationProject[] {
   try {
@@ -180,4 +182,46 @@ function getSampleProjects(): RestorationProject[] {
       notes: '刚完成脱酸处理，需要充分晾干后再进行下一步。',
     },
   ];
+}
+
+export function generateTemplateId(): string {
+  return `tpl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function getTemplates(): RestorationTemplate[] {
+  try {
+    const data = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load templates from storage:', e);
+  }
+  return getDefaultTemplates();
+}
+
+export function saveTemplates(templates: RestorationTemplate[]): void {
+  try {
+    localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(templates));
+  } catch (e) {
+    console.error('Failed to save templates to storage:', e);
+  }
+}
+
+function getDefaultTemplates(): RestorationTemplate[] {
+  const now = new Date().toISOString().split('T')[0];
+  return DEFAULT_TEMPLATES.map((tpl, index) => ({
+    ...tpl,
+    id: `tpl-default-${index + 1}`,
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
+export function getDefaultTemplate(): RestorationTemplate | undefined {
+  const templates = getTemplates();
+  return templates.find(t => t.isDefault);
 }

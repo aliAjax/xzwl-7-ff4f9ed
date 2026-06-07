@@ -1239,3 +1239,216 @@ body {
     justify-content: space-between;
   }
 }
+
+.template-manager-modal {
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-actions-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.template-card {
+  background: var(--paper-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.template-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px var(--shadow-hover);
+}
+
+.template-card.is-default {
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--paper-color) 0%, var(--accent-light) 100%);
+}
+
+.template-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.template-title-section {
+  flex: 1;
+}
+
+.template-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-color);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.default-badge {
+  background: var(--primary-color);
+  color: var(--accent-light);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.template-description {
+  color: var(--ink-light);
+  font-size: 13px;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.template-steps-preview {
+  background: var(--bg-color);
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.steps-count {
+  font-size: 12px;
+  color: var(--ink-light);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.steps-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step-tag {
+  background: var(--paper-color);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--ink-color);
+}
+
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.template-form h3 {
+  font-size: 18px;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.step-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-color);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.step-order {
+  color: var(--primary-color);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+}
+
+.step-editor-item .step-name {
+  flex: 1;
+  color: var(--ink-color);
+}
+
+.step-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--paper-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--bg-dark);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-icon.btn-danger:hover:not(:disabled) {
+  background: var(--urgency-high);
+  border-color: var(--urgency-high);
+  color: white;
+}
+
+.add-step-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.add-step-row input {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-danger {
+  background: var(--urgency-high);
+  color: white;
+  border-color: var(--urgency-high);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #a93226;
+  border-color: #a93226;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

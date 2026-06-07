@@ -76,3 +76,72 @@ export const DEFAULT_RESTORATION_STEPS: string[] = [
   '做函套',
   '拍照存档',
 ];
+
+export interface RestorationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: string[];
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const DEFAULT_TEMPLATES: Omit<RestorationTemplate, 'id' | 'createdAt' | 'updatedAt'>[] = [
+  {
+    name: '普通线装书',
+    description: '适用于一般破损的线装古籍修复',
+    isDefault: true,
+    steps: [
+      '登记建档',
+      '拍照记录',
+      '除尘清洁',
+      '脱酸处理',
+      '修补破损',
+      '托裱加固',
+      '压平整理',
+      '装订成册',
+      '做函套',
+      '拍照存档',
+    ],
+  },
+  {
+    name: '霉斑水渍本',
+    description: '针对有霉斑、水渍污染的古籍修复流程',
+    isDefault: false,
+    steps: [
+      '登记建档',
+      '拍照记录',
+      '除尘清洁',
+      '消毒杀菌',
+      '水渍清洗',
+      '霉斑清除',
+      '脱酸处理',
+      '修补破损',
+      '托裱加固',
+      '压平整理',
+      '装订成册',
+      '做函套',
+      '拍照存档',
+    ],
+  },
+  {
+    name: '虫蛀严重本',
+    description: '针对虫蛀严重、纸张脆弱的古籍修复流程',
+    isDefault: false,
+    steps: [
+      '登记建档',
+      '拍照记录',
+      '除尘清洁',
+      '消毒杀虫',
+      '脱酸处理',
+      '丝网加固',
+      '逐页修补',
+      '托裱加固',
+      '压平整理',
+      '装订成册',
+      '做函套',
+      '拍照存档',
+    ],
+  },
+];

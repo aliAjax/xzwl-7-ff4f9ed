@@ -7,6 +7,7 @@ import ProjectDetail from './components/ProjectDetail';
 import ProjectForm from './components/ProjectForm';
 import BatchImport from './components/BatchImport';
 import MaterialInventory from './components/MaterialInventory';
+import TemplateManager from './components/TemplateManager';
 
 type ViewMode = 'kanban' | 'list' | 'inventory';
 
@@ -16,6 +17,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<RestorationProject | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showBatchImport, setShowBatchImport] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [editingProject, setEditingProject] = useState<RestorationProject | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -124,6 +126,10 @@ function App() {
     setShowBatchImport(true);
   };
 
+  const handleManageTemplates = () => {
+    setShowTemplateManager(true);
+  };
+
   const handleBatchSave = (newProjects: Omit<RestorationProject, 'id' | 'createdAt' | 'updatedAt'>[]) => {
     const now = new Date().toISOString().split('T')[0];
     const projectsToAdd: RestorationProject[] = newProjects.map(p => ({
@@ -213,6 +219,9 @@ function App() {
           </div>
 
           <div className="header-actions">
+            <button className="btn btn-secondary btn-import" onClick={handleManageTemplates}>
+              ☰ 模板管理
+            </button>
             <button className="btn btn-secondary btn-import" onClick={handleBatchImport}>
               ↑ 批量导入
             </button>
@@ -271,6 +280,12 @@ function App() {
         <BatchImport
           onClose={() => setShowBatchImport(false)}
           onSave={handleBatchSave}
+        />
+      )}
+
+      {showTemplateManager && (
+        <TemplateManager
+          onClose={() => setShowTemplateManager(false)}
         />
       )}
     </div>
