@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { RestorationProject, ProjectStatus, RestorationStep, MaterialUsage, RestorationTemplate } from '../types';
+import type { RestorationProject, ProjectStatus, RestorationStep, MaterialUsage, RestorationTemplate, ImageRecord } from '../types';
 import { DAMAGE_TYPES, DEFAULT_RESTORATION_STEPS, STATUS_LABELS } from '../types';
 import { getTemplates, getDefaultTemplate } from '../utils/storage';
 
@@ -20,6 +20,7 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
   const [notes, setNotes] = useState('');
   const [restorationSteps, setRestorationSteps] = useState<RestorationStep[]>([]);
   const [materialsUsed, setMaterialsUsed] = useState<MaterialUsage[]>([]);
+  const [imageRecords, setImageRecords] = useState<ImageRecord[]>([]);
   const [newMaterial, setNewMaterial] = useState({ name: '', quantity: '', unit: '' });
   const [templates, setTemplates] = useState<RestorationTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -38,6 +39,7 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
       setNotes(project.notes || '');
       setRestorationSteps(project.restorationSteps);
       setMaterialsUsed(project.materialsUsed);
+      setImageRecords(project.imageRecords || []);
     } else {
       const today = new Date();
       const defaultDate = new Date(today.setDate(today.getDate() + 30));
@@ -133,6 +135,7 @@ export default function ProjectForm({ project, onClose, onSave }: ProjectFormPro
       notes: notes.trim() || undefined,
       restorationSteps,
       materialsUsed,
+      imageRecords,
       currentProgress: calculateProgress(),
     });
   };

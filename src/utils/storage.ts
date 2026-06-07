@@ -10,7 +10,10 @@ export function getProjects(): RestorationProject[] {
     if (data) {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map(p => ({
+          ...p,
+          imageRecords: p.imageRecords || [],
+        }));
       }
     }
   } catch (e) {
@@ -19,16 +22,51 @@ export function getProjects(): RestorationProject[] {
   return getSampleProjects();
 }
 
-export function saveProjects(projects: RestorationProject[]): void {
+export function generateId(): string {
+  return `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function generateImageRecordId(): string {
+  return `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function getStorageRemainingSpace(): number {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    const testKey = '__storage_test__';
+    const testData = 'x'.repeat(1024);
+    let remaining = 0;
+    while (true) {
+      try {
+        localStorage.setItem(testKey + remaining, testData);
+        remaining++;
+      } catch (e) {
+        for (let i = 0; i < remaining; i++) {
+          localStorage.removeItem(testKey + i);
+        }
+        return remaining * 1024;
+      }
+    }
   } catch (e) {
-    console.error('Failed to save projects to storage:', e);
+    return -1;
   }
 }
 
-export function generateId(): string {
-  return `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export function saveProjects(projects: RestorationProject[]): { success: boolean; error?: string } {
+  try {
+    const data = JSON.stringify(projects);
+    localStorage.setItem(STORAGE_KEY, data);
+    return { success: true };
+  } catch (e) {
+    const error = e as Error;
+    let errorMessage = '保存失败，存储空间不足。';
+    if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+      errorMessage = '存储空间不足！请删除一些旧的影像记录或压缩图片后重试。';
+    } else {
+      errorMessage = `保存失败：${error.message}`;
+    }
+    console.error('Failed to save projects to storage:', e);
+    return { success: false, error: errorMessage };
+  }
 }
 
 function getSampleProjects(): RestorationProject[] {
@@ -64,6 +102,7 @@ function getSampleProjects(): RestorationProject[] {
         { name: '浆糊', quantity: '200', unit: '克' },
         { name: '脱酸液', quantity: '500', unit: '毫升' },
       ],
+      imageRecords: [],
       deliveryDate: addDays(today, 30),
       status: 'in-restoration',
       createdAt: addDays(today, -20),
@@ -93,6 +132,7 @@ function getSampleProjects(): RestorationProject[] {
         { name: '绫绢', quantity: '10', unit: '米' },
         { name: '浆糊', quantity: '800', unit: '克' },
       ],
+      imageRecords: [],
       deliveryDate: addDays(today, 15),
       status: 'pending-binding',
       createdAt: addDays(today, -30),
@@ -119,6 +159,7 @@ function getSampleProjects(): RestorationProject[] {
       materialsUsed: [
         { name: '棉线', quantity: '50', unit: '米' },
       ],
+      imageRecords: [],
       deliveryDate: addDays(today, 45),
       status: 'pending-evaluation',
       createdAt: addDays(today, -10),
@@ -147,6 +188,7 @@ function getSampleProjects(): RestorationProject[] {
         { name: '楠木夹板', quantity: '8', unit: '对' },
         { name: '绫绢', quantity: '15', unit: '米' },
       ],
+      imageRecords: [],
       deliveryDate: addDays(today, -1),
       status: 'delivered',
       createdAt: addDays(today, -40),
@@ -175,6 +217,7 @@ function getSampleProjects(): RestorationProject[] {
         { name: '脱酸液', quantity: '1000', unit: '毫升' },
         { name: '皮纸', quantity: '80', unit: '张' },
       ],
+      imageRecords: [],
       deliveryDate: addDays(today, 25),
       status: 'pending-drying',
       createdAt: addDays(today, -15),

@@ -1,5 +1,6 @@
-import type { RestorationProject } from '../types';
+import type { RestorationProject, ImageRecord } from '../types';
 import { STATUS_LABELS } from '../types';
+import ImageRecordsManager from './ImageRecordsManager';
 
 interface ProjectDetailProps {
   project: RestorationProject;
@@ -7,9 +8,10 @@ interface ProjectDetailProps {
   onEdit: () => void;
   onDelete: () => void;
   onStepToggle: (stepIndex: number) => void;
+  onUpdateImageRecords: (records: ImageRecord[]) => { success: boolean; error?: string };
 }
 
-export default function ProjectDetail({ project, onClose, onEdit, onDelete, onStepToggle }: ProjectDetailProps) {
+export default function ProjectDetail({ project, onClose, onEdit, onDelete, onStepToggle, onUpdateImageRecords }: ProjectDetailProps) {
   const getDaysUntilDelivery = (deliveryDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -150,6 +152,13 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
               <p className="notes-text">{project.notes}</p>
             </div>
           )}
+
+          <div className="detail-section">
+            <ImageRecordsManager
+              project={project}
+              onUpdateRecords={onUpdateImageRecords}
+            />
+          </div>
         </div>
       </div>
     </div>

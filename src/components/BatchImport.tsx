@@ -285,6 +285,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
         completed: false,
       })),
       materialsUsed: [],
+      imageRecords: [],
     }));
 
     if (confirm(`确认导入 ${projects.length} 个项目？`)) {

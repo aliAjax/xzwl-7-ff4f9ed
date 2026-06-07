@@ -5,6 +5,30 @@ export type ProjectStatus =
   | 'pending-binding'
   | 'delivered';
 
+export type RestorationStage = 'before-restoration' | 'during-restoration' | 'after-restoration';
+
+export interface ImageRecord {
+  id: string;
+  stage: RestorationStage;
+  photoDate: string;
+  description: string;
+  imageData: string;
+  fileSize: number;
+  createdAt: string;
+}
+
+export const STAGE_LABELS: Record<RestorationStage, string> = {
+  'before-restoration': '修复前',
+  'during-restoration': '修复中',
+  'after-restoration': '修复后',
+};
+
+export const STAGE_ORDER: RestorationStage[] = [
+  'before-restoration',
+  'during-restoration',
+  'after-restoration',
+];
+
 export interface RestorationStep {
   name: string;
   completed: boolean;
@@ -26,6 +50,7 @@ export interface RestorationProject {
   restorationSteps: RestorationStep[];
   currentProgress: number;
   materialsUsed: MaterialUsage[];
+  imageRecords: ImageRecord[];
   deliveryDate: string;
   status: ProjectStatus;
   createdAt: string;

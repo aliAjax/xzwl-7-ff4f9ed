@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { RestorationProject, ProjectStatus } from './types';
+import type { RestorationProject, ProjectStatus, ImageRecord } from './types';
 import { getProjects, saveProjects, generateId } from './utils/storage';
 import KanbanBoard from './components/KanbanBoard';
 import ProjectList from './components/ProjectList';
@@ -28,7 +28,10 @@ function App() {
 
   useEffect(() => {
     if (isInitialized) {
-      saveProjects(projects);
+      const result = saveProjects(projects);
+      if (!result.success) {
+        console.error('Auto-save failed:', result.error);
+      }
     }
   }, [projects, isInitialized]);
 
@@ -67,6 +70,7 @@ function App() {
       const newProject: RestorationProject = {
         ...projectData,
         id: generateId(),
+        imageRecords: [],
         createdAt: now,
         updatedAt: now,
       };
@@ -116,6 +120,30 @@ function App() {
       )
     );
     setSelectedProject(updatedProject);
+  };
+
+  const handleUpdateImageRecords = (records: ImageRecord[]): { success: boolean; error?: string } => {
+    if (!selectedProject) return { success: false, error: '未选择项目' };
+
+    const now = new Date().toISOString().split('T')[0];
+    const updatedProject: RestorationProject = {
+      ...selectedProject,
+      imageRecords: records,
+      updatedAt: now,
+    };
+
+    const updatedProjects = projects.map(p =>
+      p.id === selectedProject.id ? updatedProject : p
+    );
+
+    const saveResult = saveProjects(updatedProjects);
+    if (!saveResult.success) {
+      return saveResult;
+    }
+
+    setProjects(updatedProjects);
+    setSelectedProject(updatedProject);
+    return { success: true };
   };
 
   const handleNewProject = () => {
@@ -275,6 +303,7 @@ function App() {
           onEdit={handleEditProject}
           onDelete={handleDeleteProject}
           onStepToggle={handleStepToggle}
+          onUpdateImageRecords={handleUpdateImageRecords}
         />
       )}
 
