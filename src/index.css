@@ -203,8 +203,13 @@ body {
   color: white;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: #a93226;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-close {
@@ -1435,17 +1440,6 @@ body {
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;
-}
-
-.btn-danger {
-  background: var(--urgency-high);
-  color: white;
-  border-color: var(--urgency-high);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #a93226;
-  border-color: #a93226;
 }
 
 .calendar-container {
