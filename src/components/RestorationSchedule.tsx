@@ -334,98 +334,16 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     return updatedEstimates;
   };
 
-  const autoScheduleProject = (project: RestorationProject, mode: 'forward' | 'backward' = 'backward') => {
-    const existing = getProjectSchedule(project.id);
-    
-    let stepEstimates: StepWorkEstimate[];
-    
-    if (mode === 'backward') {
-      stepEstimates = calculateBackwardSchedule(project);
-    } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      let currentDate = new Date(today);
-      
-      stepEstimates = project.restorationSteps.map(step => {
-        let scheduledDate: string | null = null;
-        if (!step.completed) {
-          scheduledDate = currentDate.toISOString().split('T')[0];
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-        return {
-          stepName: step.name,
-          estimatedHours: getDefaultStepHours(step.name),
-          assignedStaffId: null,
-          scheduledDate,
-        };
-      });
-    }
-
-    stepEstimates = autoAssignStaffToSteps(project, stepEstimates);
-
-    const now = new Date().toISOString().split('T')[0];
-    
-    const modeText = mode === 'backward' ? '倒排模式' : '顺排模式';
-    
-    if (existing) {
-      const updatedProjectSchedules = projectSchedules.map(ps => {
-        if (ps.projectId !== project.id) return ps;
-        return { ...ps, stepEstimates, updatedAt: now };
-      });
-      setProjectSchedules(updatedProjectSchedules);
-      const result = saveScheduleData({ staff, schedules, projectSchedules: updatedProjectSchedules });
-      if (result.success) {
-        setMessage({ type: 'success', text: `自动排班完成（${modeText}）` });
-      }
-    } else {
-      const newProjectSchedule: ProjectSchedule = {
-        projectId: project.id,
-        stepEstimates,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const updatedProjectSchedules = [...projectSchedules, newProjectSchedule];
-      setProjectSchedules(updatedProjectSchedules);
-      const result = saveScheduleData({ staff, schedules, projectSchedules: updatedProjectSchedules });
-      if (result.success) {
-        setMessage({ type: 'success', text: `自动排班完成（${modeText}）` });
-      }
-    }
-  };
-
-  const handleStepEstimateChange = (
-    projectId: string,
-    stepIndex: number,
-    field: keyof StepWorkEstimate,
-    value: string | number | null
-  ) => {
-    const now = new Date().toISOString().split('T')[0];
-    const updatedProjectSchedules = projectSchedules.map(ps => {
-      if (ps.projectId !== projectId) return ps;
-      const updatedEstimates = [...ps.stepEstimates];
-      updatedEstimates[stepIndex] = {
-        ...updatedEstimates[stepIndex],
-        [field]: value,
-      };
-      return { ...ps, stepEstimates: updatedEstimates, updatedAt: now };
-    });
-    setProjectSchedules(updatedProjectSchedules);
-  };
-
-  const generateSchedules = (project: RestorationProject) => {
-    const projectSchedule = getProjectSchedule(project.id);
-    if (!projectSchedule) {
-      setMessage({ type: 'error', text: '请先初始化项目排班' });
-      return;
-    }
-
-    const incompleteEstimates = projectSchedule.stepEstimates.filter(
+  const buildSchedulesFromEstimates = (
+    project: RestorationProject,
+    stepEstimates: StepWorkEstimate[]
+  ): ScheduleItem[] | null => {
+    const incompleteEstimates = stepEstimates.filter(
       (_est, idx) => !project.restorationSteps[idx].completed
     );
 
     if (incompleteEstimates.some(e => !e.assignedStaffId || !e.scheduledDate || e.estimatedHours <= 0)) {
-      setMessage({ type: 'error', text: '请填写所有未完成步骤的工时、负责人和日期' });
-      return;
+      return null;
     }
 
     const existingSchedules = schedules.filter(s => s.projectId === project.id && !s.completed);
@@ -458,6 +376,126 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         });
       }
     });
+
+    return newSchedules;
+  };
+
+  const autoScheduleProject = (project: RestorationProject, mode: 'forward' | 'backward' = 'backward') => {
+    const existing = getProjectSchedule(project.id);
+    
+    let stepEstimates: StepWorkEstimate[];
+    
+    if (mode === 'backward') {
+      stepEstimates = calculateBackwardSchedule(project);
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let currentDate = new Date(today);
+      
+      stepEstimates = project.restorationSteps.map(step => {
+        let scheduledDate: string | null = null;
+        if (!step.completed) {
+          scheduledDate = currentDate.toISOString().split('T')[0];
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return {
+          stepName: step.name,
+          estimatedHours: getDefaultStepHours(step.name),
+          assignedStaffId: null,
+          scheduledDate,
+        };
+      });
+    }
+
+    stepEstimates = autoAssignStaffToSteps(project, stepEstimates);
+
+    const now = new Date().toISOString().split('T')[0];
+    const newSchedules = buildSchedulesFromEstimates(project, stepEstimates);
+    
+    const modeText = mode === 'backward' ? '倒排模式' : '顺排模式';
+    
+    if (existing) {
+      const updatedProjectSchedules = projectSchedules.map(ps => {
+        if (ps.projectId !== project.id) return ps;
+        return { ...ps, stepEstimates, updatedAt: now };
+      });
+      setProjectSchedules(updatedProjectSchedules);
+      if (newSchedules) {
+        setSchedules(newSchedules);
+      }
+      const result = saveScheduleData({
+        staff,
+        schedules: newSchedules || schedules,
+        projectSchedules: updatedProjectSchedules,
+      });
+      if (result.success) {
+        setMessage({
+          type: newSchedules ? 'success' : 'error',
+          text: newSchedules
+            ? `自动排班完成（${modeText}），已同步到日历`
+            : '自动排班已生成估算，但缺少负责人或日期，无法同步到日历',
+        });
+      }
+    } else {
+      const newProjectSchedule: ProjectSchedule = {
+        projectId: project.id,
+        stepEstimates,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const updatedProjectSchedules = [...projectSchedules, newProjectSchedule];
+      setProjectSchedules(updatedProjectSchedules);
+      if (newSchedules) {
+        setSchedules(newSchedules);
+      }
+      const result = saveScheduleData({
+        staff,
+        schedules: newSchedules || schedules,
+        projectSchedules: updatedProjectSchedules,
+      });
+      if (result.success) {
+        setMessage({
+          type: newSchedules ? 'success' : 'error',
+          text: newSchedules
+            ? `自动排班完成（${modeText}），已同步到日历`
+            : '自动排班已生成估算，但缺少负责人或日期，无法同步到日历',
+        });
+      }
+    }
+  };
+
+  const handleStepEstimateChange = (
+    projectId: string,
+    stepIndex: number,
+    field: keyof StepWorkEstimate,
+    value: string | number | null
+  ) => {
+    const now = new Date().toISOString().split('T')[0];
+    const updatedProjectSchedules = projectSchedules.map(ps => {
+      if (ps.projectId !== projectId) return ps;
+      const updatedEstimates = [...ps.stepEstimates];
+      updatedEstimates[stepIndex] = {
+        ...updatedEstimates[stepIndex],
+        [field]: value,
+      };
+      return { ...ps, stepEstimates: updatedEstimates, updatedAt: now };
+    });
+    setProjectSchedules(updatedProjectSchedules);
+  };
+
+  const generateSchedules = (project: RestorationProject) => {
+    const projectSchedule = getProjectSchedule(project.id);
+    if (!projectSchedule) {
+      setMessage({ type: 'error', text: '请先初始化项目排班' });
+      return;
+    }
+
+    const newSchedules = buildSchedulesFromEstimates(project, projectSchedule.stepEstimates);
+
+    if (!newSchedules) {
+      setMessage({ type: 'error', text: '请填写所有未完成步骤的工时、负责人和日期' });
+      return;
+    }
 
     setSchedules(newSchedules);
     const result = saveScheduleData({ staff, schedules: newSchedules, projectSchedules });
