@@ -8,8 +8,9 @@ import ProjectForm from './components/ProjectForm';
 import BatchImport from './components/BatchImport';
 import MaterialInventory from './components/MaterialInventory';
 import TemplateManager from './components/TemplateManager';
+import DeliveryCalendar from './components/DeliveryCalendar';
 
-type ViewMode = 'kanban' | 'list' | 'inventory';
+type ViewMode = 'kanban' | 'list' | 'inventory' | 'calendar';
 
 function App() {
   const [projects, setProjects] = useState<RestorationProject[]>(() => getProjects());
@@ -216,6 +217,12 @@ function App() {
             >
               材料台账
             </button>
+            <button
+              className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
+              onClick={() => setViewMode('calendar')}
+            >
+              交付日历
+            </button>
           </div>
 
           <div className="header-actions">
@@ -249,6 +256,12 @@ function App() {
         )}
         {viewMode === 'inventory' && (
           <MaterialInventory
+            projects={projects}
+            onSelectProject={setSelectedProject}
+          />
+        )}
+        {viewMode === 'calendar' && (
+          <DeliveryCalendar
             projects={projects}
             onSelectProject={setSelectedProject}
           />
