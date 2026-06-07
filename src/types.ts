@@ -7,20 +7,20 @@ export type ProjectStatus =
 
 export type RestorationStage = 'before-restoration' | 'during-restoration' | 'after-restoration';
 
-export type PaperCondition = 
+export type PaperCondition =
   | 'excellent'
   | 'good'
   | 'fair'
   | 'poor'
   | 'very-poor';
 
-export type DamageSeverity = 
+export type DamageSeverity =
   | 'mild'
   | 'moderate'
   | 'severe'
   | 'critical';
 
-export type PollutionType = 
+export type PollutionType =
   | 'mold'
   | 'water-stain'
   | 'dirt'
@@ -29,7 +29,7 @@ export type PollutionType =
   | 'ink-stain'
   | 'other';
 
-export type BindingCondition = 
+export type BindingCondition =
   | 'intact'
   | 'loose'
   | 'detached'

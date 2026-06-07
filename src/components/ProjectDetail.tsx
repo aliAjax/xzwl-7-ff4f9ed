@@ -93,7 +93,7 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
             <div className="detail-section assessment-display">
               <h3>修复评估单</h3>
               <div className="assessment-completed-badge">✓ 评估已完成 · {project.assessment.completedAt}</div>
-              
+
               <div className="assessment-grid">
                 <div className="assessment-item">
                   <span className="assessment-label">纸张状态</span>
