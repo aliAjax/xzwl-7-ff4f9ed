@@ -34,6 +34,17 @@ export default function ProjectHandover({ project, onClose, getStatusBadgeClass 
     refreshRecords();
   }, [project.id]);
 
+  useEffect(() => {
+    if (viewMode === 'preview') {
+      document.body.classList.add('printing-handover');
+    } else {
+      document.body.classList.remove('printing-handover');
+    }
+    return () => {
+      document.body.classList.remove('printing-handover');
+    };
+  }, [viewMode]);
+
   const refreshRecords = () => {
     setRecords(getHandoverRecordsByProjectId(project.id));
   };
@@ -129,7 +140,19 @@ export default function ProjectHandover({ project, onClose, getStatusBadgeClass 
   };
 
   const handlePrint = () => {
-    window.print();
+    if (viewMode !== 'preview') {
+      return;
+    }
+
+    document.body.classList.add('printing-handover-active');
+
+    setTimeout(() => {
+      window.print();
+
+      setTimeout(() => {
+        document.body.classList.remove('printing-handover-active');
+      }, 500);
+    }, 250);
   };
 
   const previewData = useMemo(() => {

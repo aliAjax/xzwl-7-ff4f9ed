@@ -2206,51 +2206,235 @@ body {
   display: block;
 }
 
+.handover-modal.preview-modal .print-area {
+  background: white;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  body.printing-handover,
+  body.printing-handover-active {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    background: white !important;
   }
 
-  #handover-print-area,
-  #handover-print-area * {
-    visibility: visible;
-  }
-
-  #handover-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    border: none;
-    padding: 20px;
-  }
-
-  .no-print,
-  .modal-overlay,
-  .modal-header,
-  .preview-header,
-  .app-header,
-  .main-content,
-  .nav-tabs,
-  .message-banner {
+  body.printing-handover > :not(.modal-overlay),
+  body.printing-handover-active > :not(.modal-overlay) {
     display: none !important;
   }
 
-  .print-area {
-    border: none;
-    padding: 0;
+  body.printing-handover .modal-overlay,
+  body.printing-handover-active .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    z-index: auto !important;
   }
 
-  .print-table {
-    page-break-inside: avoid;
+  body.printing-handover .handover-modal.preview-modal,
+  body.printing-handover-active .handover-modal.preview-modal {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    overflow: visible !important;
+    border: none !important;
+    display: block !important;
   }
 
-  .print-section {
-    page-break-inside: avoid;
+  body.printing-handover .handover-modal.preview-modal .modal-body,
+  body.printing-handover-active .handover-modal.preview-modal .modal-body {
+    padding: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  body.printing-handover .no-print,
+  body.printing-handover-active .no-print,
+  body.printing-handover .modal-header,
+  body.printing-handover-active .modal-header,
+  body.printing-handover .preview-header,
+  body.printing-handover-active .preview-header,
+  body.printing-handover .app-header,
+  body.printing-handover-active .app-header,
+  body.printing-handover .main-content,
+  body.printing-handover-active .main-content,
+  body.printing-handover .nav-tabs,
+  body.printing-handover-active .nav-tabs,
+  body.printing-handover .message-banner,
+  body.printing-handover-active .message-banner,
+  body.printing-handover .btn-close,
+  body.printing-handover-active .btn-close {
+    display: none !important;
+  }
+
+  body.printing-handover .handover-preview,
+  body.printing-handover-active .handover-preview {
+    display: block !important;
+  }
+
+  body.printing-handover #handover-print-area,
+  body.printing-handover-active #handover-print-area {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    display: block !important;
+    visibility: visible !important;
+    page-break-inside: auto !important;
+  }
+
+  body.printing-handover .print-area,
+  body.printing-handover-active .print-area {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  body.printing-handover .print-header,
+  body.printing-handover-active .print-header {
+    text-align: center !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 15px !important;
+    border-bottom: 2px solid #1e3a5f !important;
+  }
+
+  body.printing-handover .print-header h2,
+  body.printing-handover-active .print-header h2 {
+    color: #1e3a5f !important;
+    font-size: 20px !important;
+    letter-spacing: 2px !important;
+    margin: 0 0 10px 0 !important;
+  }
+
+  body.printing-handover .print-section,
+  body.printing-handover-active .print-section {
+    margin-bottom: 16px !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-handover .print-section h4,
+  body.printing-handover-active .print-section h4 {
+    color: #1e3a5f !important;
+    font-size: 14px !important;
+    margin: 0 0 8px 0 !important;
+    padding-left: 6px !important;
+    border-left: 3px solid #3b82f6 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover .print-table,
+  body.printing-handover-active .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 12px !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-handover .print-table th,
+  body.printing-handover-active .print-table th,
+  body.printing-handover .print-table td,
+  body.printing-handover-active .print-table td {
+    border: 1px solid #999 !important;
+    padding: 6px 8px !important;
+    text-align: left !important;
+    color: #1f2937 !important;
+  }
+
+  body.printing-handover .print-table th,
+  body.printing-handover-active .print-table th {
+    background: #f3f4f6 !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover .print-empty,
+  body.printing-handover-active .print-empty {
+    text-align: center !important;
+    padding: 15px !important;
+    color: #6b7280 !important;
+    background: #f9fafb !important;
+    border: 1px dashed #d1d5db !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover .handover-notes-print,
+  body.printing-handover-active .handover-notes-print {
+    padding: 12px !important;
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    line-height: 1.8 !important;
+    color: #374151 !important;
+    min-height: 60px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover .print-signatures,
+  body.printing-handover-active .print-signatures {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 40px !important;
+    padding-top: 20px !important;
+    border-top: 1px solid #999 !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-handover .signature-block,
+  body.printing-handover-active .signature-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 13px !important;
+    color: #374151 !important;
+  }
+
+  body.printing-handover .signature-line,
+  body.printing-handover-active .signature-line {
+    display: inline-block !important;
+    min-width: 120px !important;
+    border-bottom: 1px solid #333 !important;
+    height: 18px !important;
+  }
+
+  body.printing-handover .print-header-info,
+  body.printing-handover-active .print-header-info {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 12px !important;
+    color: #6b7280 !important;
+  }
+
+  body.printing-handover *,
+  body.printing-handover-active * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   @page {
-    size: A4;
-    margin: 15mm;
+    size: A4 portrait !important;
+    margin: 15mm 12mm !important;
   }
 }
