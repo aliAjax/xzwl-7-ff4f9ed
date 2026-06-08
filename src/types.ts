@@ -377,6 +377,43 @@ export interface RestorePreview {
   };
 }
 
+export interface HandoverCompletedStep {
+  stepId: string;
+  stepName: string;
+  completedAt: string;
+  notes?: string;
+}
+
+export interface HandoverMaterialSummary {
+  name: string;
+  quantity: string;
+  unit: string;
+  notes?: string;
+}
+
+export interface HandoverImageSummary {
+  stage: string;
+  count: number;
+  description: string;
+}
+
+export interface HandoverRecord {
+  id: string;
+  projectId: string;
+  bookTitle: string;
+  projectNumber: string;
+  volumeCount: number;
+  currentStatus: ProjectStatus;
+  completedSteps: HandoverCompletedStep[];
+  materialsSummary: HandoverMaterialSummary[];
+  imagesSummary: HandoverImageSummary[];
+  handoverNotes: string;
+  receiver: string;
+  handoverDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const MATERIAL_ESTIMATES: Record<string, MaterialUsage[]> = {
   'tmpl_insect': [
     { id: '1', name: '修复纸', quantity: '20', unit: '张' },

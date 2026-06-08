@@ -10,6 +10,7 @@ interface ProjectDetailProps {
   onStepToggle: (projectId: string, stepId: string) => void;
   onPriorityChange: (id: string, priority: Priority) => void;
   onStartAssessment: () => void;
+  onOpenHandover: () => void;
   getStatusBadgeClass: (status: ProjectStatus) => string;
 }
 
@@ -22,6 +23,7 @@ export default function ProjectDetail({
   onStepToggle,
   onPriorityChange,
   onStartAssessment,
+  onOpenHandover,
   getStatusBadgeClass,
 }: ProjectDetailProps) {
   const formatDate = (dateStr: string) => {
@@ -89,6 +91,9 @@ export default function ProjectDetail({
                 📋 开始评估
               </button>
             )}
+            <button className="btn btn-secondary" onClick={onOpenHandover}>
+              📑 交接单
+            </button>
             <button className="btn btn-secondary" onClick={() => onEdit(project)}>
               ✏️ 编辑
             </button>
