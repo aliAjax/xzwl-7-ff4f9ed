@@ -1,5 +1,20 @@
 export type ProjectStatus = 'pending' | 'restoring' | 'drying' | 'binding' | 'delivered';
 
+export type SortField = 'createdAt' | 'updatedAt' | 'deliveryDate' | 'currentProgress' | 'bookTitle' | 'volumeCount';
+export type SortOrder = 'asc' | 'desc';
+
+export interface SavedView {
+  id: string;
+  name: string;
+  searchTerm: string;
+  statusFilter: ProjectStatus | 'all';
+  priorityFilter: Priority | 'all';
+  sortField: SortField;
+  sortOrder: SortOrder;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DamageType =
   | '虫蛀'
   | '霉斑'

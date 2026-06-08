@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
-import type { RestorationProject, ProjectStatus, Priority } from '../types';
+import { useState, useMemo, useEffect } from 'react';
+import type { RestorationProject, ProjectStatus, Priority, SortField, SortOrder, SavedView } from '../types';
 import { STATUS_LABELS } from '../types';
+import { getSavedViews, addSavedView, deleteSavedView } from '../utils/storage';
 
 interface ProjectListProps {
   projects: RestorationProject[];
@@ -10,9 +11,6 @@ interface ProjectListProps {
   onStatusChange: (id: string, status: ProjectStatus) => void;
   onNewProject: () => void;
 }
-
-type SortField = 'createdAt' | 'updatedAt' | 'deliveryDate' | 'currentProgress' | 'bookTitle' | 'volumeCount';
-type SortOrder = 'asc' | 'desc';
 
 export default function ProjectList({
   projects,
@@ -27,6 +25,20 @@ export default function ProjectList({
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [newViewName, setNewViewName] = useState('');
+  const [saveError, setSaveError] = useState('');
+
+  const loadSavedViews = () => {
+    setSavedViews(getSavedViews());
+  };
+
+  useEffect(() => {
+    loadSavedViews();
+  }, []);
 
   const getDaysUntilDelivery = (deliveryDate: string): number => {
     const today = new Date();
@@ -140,8 +152,117 @@ export default function ProjectList({
     return new Date(dateStr).toLocaleDateString('zh-CN');
   };
 
+  const isCurrentFiltersDefault = () => {
+    return searchTerm === '' && statusFilter === 'all' && priorityFilter === 'all' && sortField === 'updatedAt' && sortOrder === 'desc';
+  };
+
+  const handleOpenSaveDialog = () => {
+    setNewViewName('');
+    setSaveError('');
+    setShowSaveDialog(true);
+  };
+
+  const handleCloseSaveDialog = () => {
+    setShowSaveDialog(false);
+    setNewViewName('');
+    setSaveError('');
+  };
+
+  const handleSaveView = () => {
+    const trimmedName = newViewName.trim();
+    if (!trimmedName) {
+      setSaveError('请输入视图名称');
+      return;
+    }
+
+    const existingView = savedViews.find(v => v.name === trimmedName);
+    if (existingView) {
+      setSaveError('该视图名称已存在');
+      return;
+    }
+
+    const result = addSavedView({
+      name: trimmedName,
+      searchTerm,
+      statusFilter,
+      priorityFilter,
+      sortField,
+      sortOrder,
+    });
+
+    if (result.success && result.view) {
+      loadSavedViews();
+      setActiveViewId(result.view.id);
+      handleCloseSaveDialog();
+    } else {
+      setSaveError(result.error || '保存失败');
+    }
+  };
+
+  const handleApplyView = (view: SavedView) => {
+    setSearchTerm(view.searchTerm);
+    setStatusFilter(view.statusFilter);
+    setPriorityFilter(view.priorityFilter);
+    setSortField(view.sortField);
+    setSortOrder(view.sortOrder);
+    setActiveViewId(view.id);
+  };
+
+  const handleDeleteView = (e: React.MouseEvent, viewId: string) => {
+    e.stopPropagation();
+    const result = deleteSavedView(viewId);
+    if (result.success) {
+      loadSavedViews();
+      if (activeViewId === viewId) {
+        setActiveViewId(null);
+      }
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setSortField('updatedAt');
+    setSortOrder('desc');
+    setActiveViewId(null);
+  };
+
   return (
     <div className="project-list-container">
+      <div className="views-toolbar">
+        <div className="views-label">视图：</div>
+        <div className="views-list">
+          <button
+            className={`view-chip ${activeViewId === null && isCurrentFiltersDefault() ? 'active' : ''}`}
+            onClick={handleResetFilters}
+          >
+            默认
+          </button>
+          {savedViews.map(view => (
+            <div key={view.id} className="view-chip-wrapper">
+              <button
+                className={`view-chip ${activeViewId === view.id ? 'active' : ''}`}
+                onClick={() => handleApplyView(view)}
+                title={`搜索: ${view.searchTerm || '无'} | 状态: ${view.statusFilter} | 优先级: ${view.priorityFilter}`}
+              >
+                {view.name}
+              </button>
+              <button
+                className="view-chip-delete"
+                onClick={(e) => handleDeleteView(e, view.id)}
+                title="删除视图"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-secondary btn-small" onClick={handleOpenSaveDialog}>
+          + 保存当前视图
+        </button>
+      </div>
+
       <div className="list-toolbar">
         <div className="search-box">
           <input
@@ -301,6 +422,58 @@ export default function ProjectList({
           </div>
         )}
       </div>
+
+      {showSaveDialog && (
+        <div className="modal-overlay" onClick={handleCloseSaveDialog}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+            <h3>保存视图</h3>
+            <button className="modal-close" onClick={handleCloseSaveDialog}>×</button>
+          </div>
+          <div className="modal-body">
+            <div className="form-group">
+              <label>视图名称</label>
+              <input
+                type="text"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                placeholder="输入视图名称，如：紧急修复项目"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveView();
+                }}
+              />
+              {saveError && <div className="error-text">{saveError}</div>}
+            </div>
+            <div className="form-group">
+              <label>当前筛选配置：</label>
+              <div className="current-filter-preview">
+                <div className="filter-preview-item">
+                  <span className="filter-label">搜索词：</span>
+                  <span className="filter-value">{searchTerm || '无'}</span>
+                </div>
+                <div className="filter-preview-item">
+                  <span className="filter-label">状态：</span>
+                  <span className="filter-value">{statusFilter === 'all' ? '全部' : STATUS_LABELS[statusFilter as ProjectStatus]}</span>
+                </div>
+                <div className="filter-preview-item">
+                  <span className="filter-label">优先级：</span>
+                  <span className="filter-value">{priorityFilter === 'all' ? '全部' : priorityFilter === 'high' ? '紧急' : priorityFilter === 'medium' ? '普通' : '低优'}</span>
+                </div>
+                <div className="filter-preview-item">
+                  <span className="filter-label">排序：</span>
+                  <span className="filter-value">{sortField === 'bookTitle' ? '书名' : sortField === 'volumeCount' ? '册数' : sortField === 'currentProgress' ? '进度' : sortField === 'deliveryDate' ? '交付日期' : sortField === 'createdAt' ? '创建时间' : '更新时间'} {sortOrder === 'asc' ? '升序' : '降序'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={handleCloseSaveDialog}>取消</button>
+            <button className="btn btn-primary" onClick={handleSaveView}>保存</button>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 }
