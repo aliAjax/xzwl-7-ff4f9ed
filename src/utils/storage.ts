@@ -223,13 +223,24 @@ export const addStockInRecord = (
   name: string,
   unit: string,
   record: Omit<StockInRecord, 'id'>
-): { success: boolean; error?: string } => {
+): { success: boolean; error?: string; record?: StockInRecord } => {
   try {
     const stocks = getMaterialStocks();
-    const stock = stocks.find(s => s.name === name && s.unit === unit);
+    let stock = stocks.find(s => s.name === name && s.unit === unit);
 
     if (!stock) {
-      return { success: false, error: '材料不存在' };
+      const now = new Date().toISOString().split('T')[0];
+      stock = {
+        id: generateId(),
+        name,
+        unit,
+        openingStock: 0,
+        minimumStock: 0,
+        stockInRecords: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      stocks.push(stock);
     }
 
     const newRecord: StockInRecord = {
@@ -240,7 +251,7 @@ export const addStockInRecord = (
     stock.stockInRecords.push(newRecord);
     stock.updatedAt = new Date().toISOString().split('T')[0];
     saveMaterialStocks(stocks);
-    return { success: true };
+    return { success: true, record: newRecord };
   } catch (error) {
     return { success: false, error: '添加入库记录失败' };
   }
@@ -1150,6 +1161,76 @@ export const updatePurchaseSuggestionNote = (
     return { success: true, suggestion: suggestions[index] };
   } catch (error) {
     return { success: false, error: '更新失败' };
+  }
+};
+
+export const markSuggestionAsConverted = (
+  suggestionId: string,
+  materialName: string,
+  materialUnit: string,
+  stockInRecordId: string
+): { success: boolean; error?: string } => {
+  try {
+    const suggestions = getPurchaseSuggestions();
+    const suggestionIndex = suggestions.findIndex(s => s.id === suggestionId);
+    if (suggestionIndex === -1) {
+      return { success: false, error: '采购建议不存在' };
+    }
+
+    const suggestion = suggestions[suggestionIndex];
+    const itemIndex = suggestion.suggestions.findIndex(
+      s => s.name === materialName && s.unit === materialUnit
+    );
+    if (itemIndex === -1) {
+      return { success: false, error: '采购建议中未找到该材料' };
+    }
+
+    suggestion.suggestions[itemIndex] = {
+      ...suggestion.suggestions[itemIndex],
+      convertedToStockIn: true,
+      convertedAt: new Date().toISOString(),
+      stockInRecordId,
+    };
+
+    savePurchaseSuggestions(suggestions);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '更新采购建议状态失败' };
+  }
+};
+
+export const batchMarkSuggestionsAsConverted = (
+  suggestionId: string,
+  items: Array<{ name: string; unit: string; stockInRecordId: string }>
+): { success: boolean; error?: string } => {
+  try {
+    const suggestions = getPurchaseSuggestions();
+    const suggestionIndex = suggestions.findIndex(s => s.id === suggestionId);
+    if (suggestionIndex === -1) {
+      return { success: false, error: '采购建议不存在' };
+    }
+
+    const suggestion = suggestions[suggestionIndex];
+    const now = new Date().toISOString();
+
+    items.forEach(item => {
+      const itemIndex = suggestion.suggestions.findIndex(
+        s => s.name === item.name && s.unit === item.unit
+      );
+      if (itemIndex !== -1) {
+        suggestion.suggestions[itemIndex] = {
+          ...suggestion.suggestions[itemIndex],
+          convertedToStockIn: true,
+          convertedAt: now,
+          stockInRecordId: item.stockInRecordId,
+        };
+      }
+    });
+
+    savePurchaseSuggestions(suggestions);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '批量更新采购建议状态失败' };
   }
 };
 

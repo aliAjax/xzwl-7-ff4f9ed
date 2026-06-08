@@ -67,6 +67,26 @@ export interface PurchaseSuggestion {
   lastCalculatedAt: string;
   calculationPeriodDays: number;
   stockSafetyBuffer: number;
+  convertedToStockIn?: boolean;
+  convertedAt?: string;
+  stockInRecordId?: string;
+}
+
+export interface StockInDraft {
+  name: string;
+  unit: string;
+  suggestedQuantity: number;
+  quantity: number;
+  unitPrice?: number;
+  supplier?: string;
+  note?: string;
+  templateId?: string;
+  date: string;
+  suggestionReference?: {
+    status: PurchaseStatus;
+    suggestedPurchaseDate?: string;
+    shortageDate?: string;
+  };
 }
 
 export interface PurchaseSuggestionFilter {
