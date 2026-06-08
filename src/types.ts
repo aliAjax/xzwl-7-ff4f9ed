@@ -1,379 +1,57 @@
-export type ProjectStatus = 
-  | 'pending-evaluation'
-  | 'in-restoration'
-  | 'pending-drying'
-  | 'pending-binding'
-  | 'delivered';
+export type ProjectStatus = 'pending' | 'restoring' | 'drying' | 'binding' | 'delivered';
 
-export type RestorationStage = 'before-restoration' | 'during-restoration' | 'after-restoration';
+export type DamageType =
+  | '虫蛀'
+  | '霉斑'
+  | '水渍'
+  | '火烧'
+  | '撕裂'
+  | '脱页'
+  | '散线'
+  | '脆化'
+  | '褶皱'
+  | '缺损'
+  | '污染'
+  | '其他';
 
-export type PaperCondition =
-  | 'excellent'
-  | 'good'
-  | 'fair'
-  | 'poor'
-  | 'very-poor';
+export type Priority = 'high' | 'medium' | 'low';
 
-export type DamageSeverity =
-  | 'mild'
-  | 'moderate'
-  | 'severe'
-  | 'critical';
-
-export type PollutionType =
-  | 'mold'
-  | 'water-stain'
-  | 'dirt'
-  | 'dust'
-  | 'smoke'
-  | 'ink-stain'
-  | 'other';
-
-export type BindingCondition =
-  | 'intact'
-  | 'loose'
-  | 'detached'
-  | 'pages-missing'
-  | 'needs-rebinding';
-
-export const PAPER_CONDITION_LABELS: Record<PaperCondition, string> = {
-  'excellent': '完好',
-  'good': '轻微老化',
-  'fair': '中度老化',
-  'poor': '严重老化',
-  'very-poor': '脆化严重',
-};
-
-export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
-  'mild': '轻度',
-  'moderate': '中度',
-  'severe': '重度',
-  'critical': '极重',
-};
-
-export const POLLUTION_TYPE_LABELS: Record<PollutionType, string> = {
-  'mold': '霉斑',
-  'water-stain': '水渍',
-  'dirt': '污渍',
-  'dust': '灰尘',
-  'smoke': '烟熏',
-  'ink-stain': '墨迹',
-  'other': '其他',
-};
-
-export const BINDING_CONDITION_LABELS: Record<BindingCondition, string> = {
-  'intact': '完好',
-  'loose': '松动',
-  'detached': '脱线',
-  'pages-missing': '散页',
-  'needs-rebinding': '需重装',
-};
-
-export interface MaterialEstimate {
-  name: string;
-  quantity: string;
-  unit: string;
-}
-
-export interface RestorationAssessment {
-  id: string;
-  paperCondition: PaperCondition;
-  damageSeverity: DamageSeverity;
-  pollutionTypes: PollutionType[];
-  bindingCondition: BindingCondition;
-  repairSuggestion: string;
-  recommendedTemplateId: string;
-  estimatedDuration: string;
-  materialEstimates: MaterialEstimate[];
-  createdAt: string;
-  completedAt: string;
-}
-
-export const DAMAGE_TYPE_TO_TEMPLATE: Record<string, string> = {
-  '虫蛀': 'tpl-default-3',
-  '鼠啮': 'tpl-default-3',
-  '水渍': 'tpl-default-2',
-  '霉斑': 'tpl-default-2',
-  '酸化': 'tpl-default-1',
-  '脱线': 'tpl-default-1',
-  '脱页': 'tpl-default-1',
-  '破损': 'tpl-default-1',
-  '撕裂': 'tpl-default-3',
-  '污渍': 'tpl-default-2',
-  '焦脆': 'tpl-default-3',
-  '粘连': 'tpl-default-2',
-};
-
-export const SEVERITY_DURATION_ESTIMATE: Record<DamageSeverity, string> = {
-  'mild': '7-10天',
-  'moderate': '15-20天',
-  'severe': '25-35天',
-  'critical': '40-60天',
-};
-
-export const MATERIAL_ESTIMATES: Record<string, MaterialEstimate[]> = {
-  'tpl-default-1': [
-    { name: '皮纸', quantity: '50', unit: '张' },
-    { name: '浆糊', quantity: '200', unit: '克' },
-    { name: '脱酸液', quantity: '500', unit: '毫升' },
-    { name: '棉线', quantity: '30', unit: '米' },
-  ],
-  'tpl-default-2': [
-    { name: '皮纸', quantity: '100', unit: '张' },
-    { name: '浆糊', quantity: '400', unit: '克' },
-    { name: '脱酸液', quantity: '1000', unit: '毫升' },
-    { name: '清洗剂', quantity: '300', unit: '毫升' },
-    { name: '杀菌剂', quantity: '200', unit: '毫升' },
-    { name: '棉线', quantity: '50', unit: '米' },
-  ],
-  'tpl-default-3': [
-    { name: '皮纸', quantity: '150', unit: '张' },
-    { name: '绫绢', quantity: '10', unit: '米' },
-    { name: '浆糊', quantity: '600', unit: '克' },
-    { name: '脱酸液', quantity: '1000', unit: '毫升' },
-    { name: '丝网', quantity: '20', unit: '米' },
-    { name: '杀虫剂', quantity: '200', unit: '毫升' },
-    { name: '棉线', quantity: '80', unit: '米' },
-  ],
-};
-
-export interface ImageRecord {
-  id: string;
-  stage: RestorationStage;
-  photoDate: string;
-  description: string;
-  imageData: string;
-  fileSize: number;
-  createdAt: string;
-}
-
-export const STAGE_LABELS: Record<RestorationStage, string> = {
-  'before-restoration': '修复前',
-  'during-restoration': '修复中',
-  'after-restoration': '修复后',
-};
-
-export const STAGE_ORDER: RestorationStage[] = [
-  'before-restoration',
-  'during-restoration',
-  'after-restoration',
-];
-
-export interface RestorationStep {
-  name: string;
-  completed: boolean;
-  date?: string;
-  note?: string;
-}
-
-export interface MaterialUsage {
-  name: string;
-  quantity: string;
-  unit: string;
-}
-
-export interface RestorationProject {
-  id: string;
-  bookTitle: string;
-  volumeCount: number;
-  damageTypes: string[];
-  restorationSteps: RestorationStep[];
-  currentProgress: number;
-  materialsUsed: MaterialUsage[];
-  imageRecords: ImageRecord[];
-  deliveryDate: string;
-  status: ProjectStatus;
-  createdAt: string;
-  updatedAt: string;
-  notes?: string;
-  assessment?: RestorationAssessment;
-}
-
-export const STATUS_LABELS: Record<ProjectStatus, string> = {
-  'pending-evaluation': '待评估',
-  'in-restoration': '修复中',
-  'pending-drying': '待晾干',
-  'pending-binding': '待装订',
-  'delivered': '已交付',
-};
-
-export const STATUS_ORDER: ProjectStatus[] = [
-  'pending-evaluation',
-  'in-restoration',
-  'pending-drying',
-  'pending-binding',
-  'delivered',
-];
-
-export const DAMAGE_TYPES = [
-  '虫蛀',
-  '鼠啮',
-  '水渍',
-  '霉斑',
-  '酸化',
-  '脱线',
-  '脱页',
-  '破损',
-  '撕裂',
-  '污渍',
-  '焦脆',
-  '粘连',
-];
-
-export const DEFAULT_RESTORATION_STEPS: string[] = [
-  '登记建档',
-  '拍照记录',
-  '除尘清洁',
-  '脱酸处理',
-  '修补破损',
-  '托裱加固',
-  '压平整理',
-  '装订成册',
-  '做函套',
-  '拍照存档',
-];
-
-export interface RestorationTemplate {
-  id: string;
-  name: string;
-  description: string;
-  steps: string[];
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const DEFAULT_TEMPLATES: Omit<RestorationTemplate, 'id' | 'createdAt' | 'updatedAt'>[] = [
-  {
-    name: '普通线装书',
-    description: '适用于一般破损的线装古籍修复',
-    isDefault: true,
-    steps: [
-      '登记建档',
-      '拍照记录',
-      '除尘清洁',
-      '脱酸处理',
-      '修补破损',
-      '托裱加固',
-      '压平整理',
-      '装订成册',
-      '做函套',
-      '拍照存档',
-    ],
-  },
-  {
-    name: '霉斑水渍本',
-    description: '针对有霉斑、水渍污染的古籍修复流程',
-    isDefault: false,
-    steps: [
-      '登记建档',
-      '拍照记录',
-      '除尘清洁',
-      '消毒杀菌',
-      '水渍清洗',
-      '霉斑清除',
-      '脱酸处理',
-      '修补破损',
-      '托裱加固',
-      '压平整理',
-      '装订成册',
-      '做函套',
-      '拍照存档',
-    ],
-  },
-  {
-    name: '虫蛀严重本',
-    description: '针对虫蛀严重、纸张脆弱的古籍修复流程',
-    isDefault: false,
-    steps: [
-      '登记建档',
-      '拍照记录',
-      '除尘清洁',
-      '消毒杀虫',
-      '脱酸处理',
-      '丝网加固',
-      '逐页修补',
-      '托裱加固',
-      '压平整理',
-      '装订成册',
-      '做函套',
-      '拍照存档',
-    ],
-  },
-];
-
-export interface RestorationStaff {
-  id: string;
-  name: string;
-  dailyWorkHours: number;
-  skills: string[];
-  phone?: string;
-  note?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StepWorkEstimate {
-  stepName: string;
-  estimatedHours: number;
-  assignedStaffId: string | null;
-  scheduledDate: string | null;
-}
-
-export interface ScheduleItem {
-  id: string;
-  projectId: string;
-  projectTitle: string;
-  stepName: string;
-  staffId: string;
-  staffName: string;
-  scheduledDate: string;
-  estimatedHours: number;
-  completed: boolean;
-  completedDate?: string;
-  note?: string;
-}
-
-export interface ProjectSchedule {
-  projectId: string;
-  stepEstimates: StepWorkEstimate[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ScheduleData {
-  staff: RestorationStaff[];
-  schedules: ScheduleItem[];
-  projectSchedules: ProjectSchedule[];
-}
-
-export const DEFAULT_STEP_HOURS: Record<string, number> = {
-  '登记建档': 1,
-  '拍照记录': 2,
-  '除尘清洁': 2,
-  '消毒杀菌': 3,
-  '水渍清洗': 4,
-  '霉斑清除': 4,
-  '脱酸处理': 3,
-  '丝网加固': 5,
-  '逐页修补': 6,
-  '修补破损': 5,
-  '托裱加固': 4,
-  '压平整理': 2,
-  '装订成册': 3,
-  '做函套': 4,
-  '拍照存档': 2,
-  '消毒杀虫': 3,
-};
+export type PaperCondition = 'excellent' | 'good' | 'fair' | 'poor' | 'very_poor';
+export type DamageSeverity = 'mild' | 'moderate' | 'severe' | 'critical';
+export type PollutionType = 'dust' | 'mold' | 'water_stain' | 'oil' | 'ink' | 'smoke' | 'other';
+export type BindingCondition = 'intact' | 'loose' | 'partial_damage' | 'needs_rebinding';
 
 export type StockStatus = 'normal' | 'low' | 'critical' | 'stale';
 
-export const STOCK_STATUS_LABELS: Record<StockStatus, string> = {
-  'normal': '库存正常',
-  'low': '即将不足',
-  'critical': '库存不足',
-  'stale': '长期未用',
-};
+export interface RestorationStep {
+  id: string;
+  name: string;
+  description: string;
+  completed: boolean;
+  completedAt?: string;
+  date?: string;
+  estimatedDuration: number;
+  notes?: string;
+}
+
+export interface MaterialUsage {
+  id: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  notes?: string;
+}
+
+export interface MaterialStock {
+  id: string;
+  name: string;
+  unit: string;
+  openingStock: number;
+  minimumStock: number;
+  stockInRecords: StockInRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface StockInRecord {
   id: string;
@@ -384,14 +62,109 @@ export interface StockInRecord {
   note?: string;
 }
 
-export interface MaterialStock {
+export type RestorationStage = 'before' | 'during' | 'after';
+
+export const STAGE_ORDER: RestorationStage[] = ['before', 'during', 'after'];
+
+export const STAGE_LABELS: Record<RestorationStage, string> = {
+  before: '修复前',
+  during: '修复中',
+  after: '修复后',
+};
+
+export interface ImageRecord {
+  id: string;
+  projectId: string;
+  stage: RestorationStage;
+  fileName: string;
+  fileSize: number;
+  dataUrl?: string;
+  imageData?: string;
+  thumbnail?: string;
+  photoDate: string;
+  description: string;
+  uploadedAt?: string;
+  createdAt?: string;
+  fileType?: string;
+}
+
+export interface RestorationStaff {
+  id: string;
   name: string;
-  unit: string;
-  openingStock: number;
-  minimumStock: number;
-  stockInRecords: StockInRecord[];
+  role?: string;
+  phone?: string;
+  skills?: string[];
+  hourlyRate?: number;
+  dailyWorkHours?: number;
+  note?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ScheduleItem {
+  id: string;
+  projectId: string;
+  projectTitle?: string;
+  stepId?: string;
+  stepName?: string;
+  staffId: string;
+  staffName?: string;
+  startDate?: string;
+  endDate?: string;
+  scheduledDate?: string;
+  estimatedHours: number;
+  actualHours?: number;
+  status?: 'scheduled' | 'in_progress' | 'completed';
+  completed?: boolean;
+  notes?: string;
+}
+
+export interface ProjectSchedule {
+  projectId: string;
+  totalEstimatedHours?: number;
+  totalActualHours?: number;
+  startDate?: string;
+  endDate?: string;
+  stepEstimates?: StepWorkEstimate[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface StepWorkEstimate {
+  stepId?: string;
+  stepName: string;
+  estimatedHours: number;
+  requiredSkills?: string[];
+  priority?: number;
+  assignedStaffId?: string | null;
+  scheduledDate?: string | null;
+}
+
+export interface ScheduleData {
+  staff: RestorationStaff[];
+  schedules: ScheduleItem[];
+  projectSchedules: ProjectSchedule[];
+}
+
+export const DAMAGE_TYPES = [
+  '虫蛀', '霉斑', '水渍', '火烧', '撕裂',
+  '脱页', '散线', '脆化', '褶皱', '缺损', '污染', '其他'
+];
+
+export const DEFAULT_RESTORATION_STEPS = [
+  '检查评估',
+  '清理除尘',
+  '脱酸处理',
+  '补洞修复',
+  '托裱加固',
+  '晾干定型',
+  '装订整理',
+];
+
+declare module './types' {
+  interface RestorationProject {
+    imageRecords?: ImageRecord[];
+  }
 }
 
 export interface InventorySummary {
@@ -411,3 +184,249 @@ export interface InventorySummary {
   relatedProjects: RestorationProject[];
   stockInRecords: StockInRecord[];
 }
+
+export interface RestorationAssessment {
+  id: string;
+  projectId: string;
+  paperCondition: PaperCondition;
+  damageSeverity: DamageSeverity;
+  pollutionTypes: PollutionType[];
+  bindingCondition: BindingCondition;
+  repairSuggestion: string;
+  recommendedTemplateId: string;
+  estimatedDuration: string;
+  estimatedMaterials: MaterialUsage[];
+  createdAt: string;
+  completedAt: string;
+}
+
+export interface RestorationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: string[];
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RestorationProject {
+  id: string;
+  bookTitle: string;
+  volumeCount: number;
+  damageTypes: DamageType[];
+  restorationSteps: RestorationStep[];
+  currentProgress: number;
+  status: ProjectStatus;
+  materialsUsed: MaterialUsage[];
+  deliveryDate: string;
+  priority: Priority;
+  description: string;
+  assessment?: RestorationAssessment;
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
+}
+
+export const STATUS_LABELS: Record<ProjectStatus, string> = {
+  pending: '待评估',
+  restoring: '修复中',
+  drying: '待晾干',
+  binding: '待装订',
+  delivered: '已交付',
+};
+
+export const STATUS_COLORS: Record<ProjectStatus, { bg: string; text: string; border: string }> = {
+  pending: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  restoring: { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+  drying: { bg: '#ede9fe', text: '#5b21b6', border: '#c4b5fd' },
+  binding: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
+  delivered: { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+};
+
+export const PRIORITY_LABELS: Record<Priority, string> = {
+  high: '紧急',
+  medium: '普通',
+  low: '低优',
+};
+
+export const DAMAGE_TYPE_OPTIONS: DamageType[] = [
+  '虫蛀', '霉斑', '水渍', '火烧', '撕裂',
+  '脱页', '散线', '脆化', '褶皱', '缺损', '污染', '其他'
+];
+
+export const PAPER_CONDITION_LABELS: Record<PaperCondition, string> = {
+  excellent: '极佳',
+  good: '良好',
+  fair: '一般',
+  poor: '较差',
+  very_poor: '严重',
+};
+
+export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
+  mild: '轻微',
+  moderate: '中度',
+  severe: '严重',
+  critical: '极重',
+};
+
+export const POLLUTION_TYPE_LABELS: Record<PollutionType, string> = {
+  dust: '灰尘',
+  mold: '霉变',
+  water_stain: '水渍',
+  oil: '油污',
+  ink: '墨迹',
+  smoke: '烟熏',
+  other: '其他',
+};
+
+export const BINDING_CONDITION_LABELS: Record<BindingCondition, string> = {
+  intact: '完好',
+  loose: '松动',
+  partial_damage: '部分损坏',
+  needs_rebinding: '需重装',
+};
+
+export const STOCK_STATUS_LABELS: Record<StockStatus, string> = {
+  normal: '库存正常',
+  low: '即将不足',
+  critical: '库存不足',
+  stale: '长期未用',
+};
+
+export const DAMAGE_TYPE_TO_TEMPLATE: Record<string, string> = {
+  '虫蛀': 'tmpl_insect',
+  '霉斑': 'tmpl_mold',
+  '水渍': 'tmpl_water',
+  '火烧': 'tmpl_fire',
+  '撕裂': 'tmpl_tear',
+  '脱页': 'tmpl_page',
+  '散线': 'tmpl_binding',
+  '脆化': 'tmpl_brittle',
+  '缺损': 'tmpl_missing',
+};
+
+export const SEVERITY_DURATION_ESTIMATE: Record<DamageSeverity, string> = {
+  mild: '3-5 工作日',
+  moderate: '7-14 工作日',
+  severe: '15-30 工作日',
+  critical: '30-60 工作日',
+};
+
+export const BACKUP_SCHEMA_VERSION = '1.0.0';
+
+export interface BackupMetadata {
+  schemaVersion: string;
+  backupVersion: string;
+  createdAt: string;
+  createdAtFormatted: string;
+  projectCount: number;
+  totalImageRecords: number;
+  totalImageSizeBytes: number;
+  note?: string;
+  appVersion?: string;
+  statistics?: Record<string, unknown>;
+}
+
+export interface BackupData {
+  metadata: BackupMetadata;
+  projects: RestorationProject[];
+  templates: RestorationTemplate[];
+  scheduleData: ScheduleData;
+  inventory: MaterialStock[];
+  appSettings?: Record<string, unknown>;
+  extensionFields?: Record<string, unknown>;
+}
+
+export interface DiffItem<T> {
+  type?: 'added' | 'modified' | 'deleted' | 'unchanged';
+  incoming?: T | null;
+  existing?: T | null;
+  id: string;
+  entity?: T;
+  existingEntity?: T;
+  changeType?: 'added' | 'modified' | 'deleted' | 'unchanged';
+  resolution?: ConflictResolution;
+  newId?: string;
+}
+
+export interface BackupDiffResult {
+  projects: DiffItem<RestorationProject>[];
+  templates: DiffItem<RestorationTemplate>[];
+  staff: DiffItem<RestorationStaff>[];
+  schedules: DiffItem<ScheduleItem>[];
+  inventory: DiffItem<MaterialStock>[];
+  warnings?: string[];
+  errors?: string[];
+  estimatedSpaceNeeded?: number;
+}
+
+export type ConflictResolution = 'keep_existing' | 'overwrite' | 'merge';
+
+export interface RestorePreview {
+  diff: BackupDiffResult;
+  conflicts: number;
+  toAdd: number;
+  toUpdate: number;
+  toDelete: number;
+  resolution: Record<string, ConflictResolution>;
+  summary?: {
+    totalChanges: number;
+    canRestore: boolean;
+    spaceCheckPassed: boolean;
+  };
+}
+
+export const MATERIAL_ESTIMATES: Record<string, MaterialUsage[]> = {
+  'tmpl_insect': [
+    { id: '1', name: '修复纸', quantity: '20', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '100', unit: '克' },
+    { id: '3', name: '毛刷', quantity: '2', unit: '个' },
+  ],
+  'tmpl_mold': [
+    { id: '1', name: '修复纸', quantity: '30', unit: '张' },
+    { id: '2', name: '清洁剂', quantity: '200', unit: '毫升' },
+    { id: '3', name: '浆糊', quantity: '150', unit: '克' },
+  ],
+  'tmpl_water': [
+    { id: '1', name: '吸水纸', quantity: '50', unit: '张' },
+    { id: '2', name: '修复纸', quantity: '25', unit: '张' },
+    { id: '3', name: '浆糊', quantity: '100', unit: '克' },
+  ],
+  'tmpl_fire': [
+    { id: '1', name: '修复纸', quantity: '40', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '200', unit: '克' },
+    { id: '3', name: '衬纸', quantity: '30', unit: '张' },
+  ],
+  'tmpl_tear': [
+    { id: '1', name: '修复纸', quantity: '15', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '80', unit: '克' },
+    { id: '3', name: '镊子', quantity: '1', unit: '个' },
+  ],
+  'tmpl_page': [
+    { id: '1', name: '修复纸', quantity: '20', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '100', unit: '克' },
+    { id: '3', name: '装订线', quantity: '5', unit: '米' },
+  ],
+  'tmpl_binding': [
+    { id: '1', name: '装订线', quantity: '10', unit: '米' },
+    { id: '2', name: '封面纸', quantity: '5', unit: '张' },
+    { id: '3', name: '浆糊', quantity: '150', unit: '克' },
+  ],
+  'tmpl_brittle': [
+    { id: '1', name: '衬纸', quantity: '50', unit: '张' },
+    { id: '2', name: '修复纸', quantity: '40', unit: '张' },
+    { id: '3', name: '浆糊', quantity: '200', unit: '克' },
+    { id: '4', name: '柔软剂', quantity: '100', unit: '毫升' },
+  ],
+  'tmpl_missing': [
+    { id: '1', name: '修复纸', quantity: '50', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '250', unit: '克' },
+    { id: '3', name: '衬纸', quantity: '40', unit: '张' },
+  ],
+  'tmpl_default': [
+    { id: '1', name: '修复纸', quantity: '20', unit: '张' },
+    { id: '2', name: '浆糊', quantity: '100', unit: '克' },
+    { id: '3', name: '毛刷', quantity: '1', unit: '个' },
+  ],
+};

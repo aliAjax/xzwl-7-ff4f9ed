@@ -3,10 +3,10 @@ import type { RestorationTemplate } from '../types';
 import { getTemplates, saveTemplates, generateTemplateId } from '../utils/storage';
 
 interface TemplateManagerProps {
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-export default function TemplateManager({ onClose }: TemplateManagerProps) {
+export default function TemplateManager({ onClose }: TemplateManagerProps = {}) {
   const [templates, setTemplates] = useState<RestorationTemplate[]>([]);
   const [editingTemplate, setEditingTemplate] = useState<RestorationTemplate | null>(null);
   const [isCreating, setIsCreating] = useState(false);

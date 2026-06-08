@@ -143,7 +143,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       return {
         stepName: step.name,
         estimatedHours: getDefaultStepHours(step.name),
-        assignedStaffId: null,
+        assignedStaffId: undefined,
         scheduledDate,
       };
     });
@@ -178,7 +178,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       return project.restorationSteps.map((step) => ({
         stepName: step.name,
         estimatedHours: getDefaultStepHours(step.name),
-        assignedStaffId: null,
+        assignedStaffId: undefined,
         scheduledDate: step.completed ? (step.date || null) : null,
       }));
     }
@@ -188,7 +188,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       0
     );
     const avgDailyHours = staff.length > 0
-      ? staff.reduce((sum, s) => sum + s.dailyWorkHours, 0) / staff.length
+      ? staff.reduce((sum, s) => sum + (s.dailyWorkHours || 8), 0) / staff.length
       : 6;
     let estimatedDays = Math.ceil(totalHours / avgDailyHours);
     estimatedDays = Math.max(estimatedDays, incompleteSteps.length);
@@ -197,7 +197,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const stepEstimates: StepWorkEstimate[] = project.restorationSteps.map(step => ({
       stepName: step.name,
       estimatedHours: getDefaultStepHours(step.name),
-      assignedStaffId: null,
+      assignedStaffId: undefined,
       scheduledDate: step.completed ? (step.date || null) : null,
     }));
 
@@ -257,10 +257,10 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const dateStaffLoad = new Map<string, Map<string, number>>();
     schedules.forEach(item => {
       if (!item.completed) {
-        if (!dateStaffLoad.has(item.scheduledDate)) {
-          dateStaffLoad.set(item.scheduledDate, new Map());
+        if (!dateStaffLoad.has(item.scheduledDate!)) {
+          dateStaffLoad.set(item.scheduledDate!, new Map());
         }
-        const staffMap = dateStaffLoad.get(item.scheduledDate)!;
+        const staffMap = dateStaffLoad.get(item.scheduledDate!)!;
         staffMap.set(item.staffId, (staffMap.get(item.staffId) || 0) + item.estimatedHours);
       }
     });
@@ -294,7 +294,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         const totalLoad = staffTotalLoad.get(s.id) || 0;
         const newLoad = currentLoad + stepHours;
         
-        if (newLoad <= s.dailyWorkHours) {
+        if (newLoad <= (s.dailyWorkHours || 8)) {
           const score = currentLoad * 2 + totalLoad * 0.5;
           if (score < minScore) {
             bestStaff = s;
@@ -309,7 +309,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
           const currentLoad = staffLoad.get(s.id) || 0;
           const totalLoad = staffTotalLoad.get(s.id) || 0;
           const newLoad = currentLoad + stepHours;
-          const overload = Math.max(0, newLoad - s.dailyWorkHours);
+          const overload = Math.max(0, newLoad - (s.dailyWorkHours || 8));
           const score = overload * 10 + currentLoad + totalLoad * 0.5;
           
           if (score < minOverloadScore) {
@@ -401,7 +401,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         return {
           stepName: step.name,
           estimatedHours: getDefaultStepHours(step.name),
-          assignedStaffId: null,
+          assignedStaffId: undefined,
           scheduledDate,
         };
       });
@@ -473,7 +473,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const now = new Date().toISOString().split('T')[0];
     const updatedProjectSchedules = projectSchedules.map(ps => {
       if (ps.projectId !== projectId) return ps;
-      const updatedEstimates = [...ps.stepEstimates];
+      const updatedEstimates = [...(ps.stepEstimates || [])];
       updatedEstimates[stepIndex] = {
         ...updatedEstimates[stepIndex],
         [field]: value,
@@ -490,7 +490,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       return;
     }
 
-    const newSchedules = buildSchedulesFromEstimates(project, projectSchedule.stepEstimates);
+    const newSchedules = buildSchedulesFromEstimates(project, projectSchedule.stepEstimates || []);
 
     if (!newSchedules) {
       setMessage({ type: 'error', text: '请填写所有未完成步骤的工时、负责人和日期' });
@@ -522,7 +522,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const daysUntilDelivery = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     if (projectSchedule) {
-      const incompleteEstimates = projectSchedule.stepEstimates.filter(
+      const incompleteEstimates = (projectSchedule.stepEstimates || []).filter(
         (_est, idx) => !project.restorationSteps[idx].completed
       );
       
@@ -537,7 +537,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       }
 
       const totalHours = incompleteEstimates.reduce((sum, e) => sum + e.estimatedHours, 0);
-      const totalStaffHours = staff.reduce((sum, s) => sum + s.dailyWorkHours, 0);
+      const totalStaffHours = staff.reduce((sum, s) => sum + (s.dailyWorkHours || 8), 0);
       const minDaysNeeded = Math.ceil(totalHours / Math.max(totalStaffHours, 1));
       
       if (minDaysNeeded > daysUntilDelivery && daysUntilDelivery >= 0) {
@@ -573,10 +573,10 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         const staffMember = staff.find(s => s.id === staffId);
         if (!staffMember) return;
         dateMap.forEach((hours, date) => {
-          if (hours > staffMember.dailyWorkHours) {
+          if (hours > (staffMember.dailyWorkHours || 8)) {
             risks.push({
               type: 'overload',
-              message: `${staffMember.name} 在 ${date} 预估负载 ${hours} 小时，超出日限 ${staffMember.dailyWorkHours} 小时`,
+              message: `${staffMember.name} 在 ${date} 预估负载 ${hours} 小时，超出日限 ${(staffMember.dailyWorkHours || 8)} 小时`,
             });
           }
         });
@@ -584,7 +584,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     }
 
     if (items.length > 0) {
-      const lastDate = new Date(Math.max(...items.map(i => new Date(i.scheduledDate).getTime())));
+      const lastDate = new Date(Math.max(...items.map(i => new Date(i.scheduledDate!).getTime())));
       if (lastDate > deliveryDate) {
         const overDays = Math.ceil((lastDate.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
         risks.push({ type: 'overdue', message: `已排班预估完成日期超出交付日期 ${overDays} 天` });
@@ -597,17 +597,17 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         staffDailyHours.set(item.staffId, new Map());
       }
       const dateMap = staffDailyHours.get(item.staffId)!;
-      dateMap.set(item.scheduledDate, (dateMap.get(item.scheduledDate) || 0) + item.estimatedHours);
+      dateMap.set(item.scheduledDate!, (dateMap.get(item.scheduledDate!) || 0) + item.estimatedHours);
     });
 
     staffDailyHours.forEach((dateMap, staffId) => {
       const staffMember = staff.find(s => s.id === staffId);
       if (!staffMember) return;
       dateMap.forEach((hours, date) => {
-        if (hours > staffMember.dailyWorkHours) {
+        if (hours > (staffMember.dailyWorkHours || 8)) {
           risks.push({
             type: 'overload',
-            message: `${staffMember.name} 在 ${date} 负载 ${hours} 小时，超出日限 ${staffMember.dailyWorkHours} 小时`,
+            message: `${staffMember.name} 在 ${date} 负载 ${hours} 小时，超出日限 ${(staffMember.dailyWorkHours || 8)} 小时`,
           });
         }
       });
@@ -625,8 +625,8 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
           staffId: s.id,
           name: s.name,
           hours,
-          maxHours: s.dailyWorkHours,
-          overload: hours > s.dailyWorkHours,
+          maxHours: (s.dailyWorkHours || 8),
+          overload: hours > (s.dailyWorkHours || 8),
         });
       }
     });
@@ -729,7 +729,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const incomplete = schedules.filter(s => !s.completed);
     const todayItems = incomplete.filter(s => s.scheduledDate === today);
     const thisWeekItems = incomplete.filter(s => {
-      const date = new Date(s.scheduledDate);
+      const date = new Date(s.scheduledDate!);
       const now = new Date();
       const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       return date >= now && date <= weekEnd;
@@ -843,12 +843,12 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                       <div className="staff-avatar">{s.name.charAt(0)}</div>
                       <div className="staff-info">
                         <div className="staff-name">{s.name}</div>
-                        <div className="staff-hours">每日可用: {s.dailyWorkHours}小时</div>
+                        <div className="staff-hours">每日可用: {(s.dailyWorkHours || 8)}小时</div>
                       </div>
                     </div>
-                    {s.skills.length > 0 && (
+                    {(s.skills || []).length > 0 && (
                       <div className="staff-skills">
-                        {s.skills.map((skill, idx) => (
+                        {(s.skills || []).map((skill, idx) => (
                           <span key={idx} className="skill-tag">{skill}</span>
                         ))}
                       </div>
@@ -963,7 +963,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                                   <div className="col-date">排期</div>
                                 </div>
                                 {project.restorationSteps.map((step, idx) => {
-                                  const estimate = projectSchedule.stepEstimates[idx];
+                                  const estimate = (projectSchedule.stepEstimates || [])[idx];
                                   if (!estimate) return null;
 
                                   return (
@@ -1018,7 +1018,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                                             <option value="">请选择负责人</option>
                                             {staff.map(s => (
                                               <option key={s.id} value={s.id}>
-                                                {s.name} ({s.dailyWorkHours}h/天)
+                                                {s.name} ({(s.dailyWorkHours || 8)}h/天)
                                               </option>
                                             ))}
                                           </select>
@@ -1221,7 +1221,7 @@ function StaffForm({ staff, onClose, onSave }: StaffFormProps) {
       name: name.trim(),
       dailyWorkHours,
       skills,
-      phone: phone.trim() || undefined,
+      phone: phone.trim() || "",
       note: note.trim() || undefined,
     });
   };

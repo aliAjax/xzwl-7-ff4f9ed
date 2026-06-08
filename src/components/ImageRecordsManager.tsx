@@ -11,7 +11,7 @@ interface ImageRecordsManagerProps {
 
 export default function ImageRecordsManager({ project, onUpdateRecords }: ImageRecordsManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<RestorationStage>('before-restoration');
+  const [selectedStage, setSelectedStage] = useState<RestorationStage>('before');
   const [photoDate, setPhotoDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -80,7 +80,9 @@ export default function ImageRecordsManager({ project, onUpdateRecords }: ImageR
         photoDate,
         description: description.trim(),
         imageData: result.imageData,
-        fileSize: result.fileSize,
+        projectId: project.id,
+        fileName: selectedFile.name,
+        fileType: selectedFile.type,        fileSize: result.fileSize,
         createdAt: new Date().toISOString().split('T')[0],
       };
 

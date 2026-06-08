@@ -1,127 +1,103 @@
-import { useMemo } from 'react';
-import type { RestorationProject, ImageRecord, ScheduleItem, ProjectSchedule } from '../types';
-import { STATUS_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
-import { getScheduleData } from '../utils/storage';
-import ImageRecordsManager from './ImageRecordsManager';
+import type { RestorationProject, ProjectStatus, Priority, RestorationStep } from '../types';
+import { STATUS_LABELS, PRIORITY_LABELS } from '../types';
 
 interface ProjectDetailProps {
   project: RestorationProject;
   onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onStepToggle: (stepIndex: number) => void;
-  onUpdateImageRecords: (records: ImageRecord[]) => { success: boolean; error?: string };
+  onEdit: (project: RestorationProject) => void;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: ProjectStatus) => void;
+  onStepToggle: (projectId: string, stepId: string) => void;
+  onPriorityChange: (id: string, priority: Priority) => void;
   onStartAssessment: () => void;
+  getStatusBadgeClass: (status: ProjectStatus) => string;
 }
 
-export default function ProjectDetail({ project, onClose, onEdit, onDelete, onStepToggle, onUpdateImageRecords, onStartAssessment }: ProjectDetailProps) {
-  const getDaysUntilDelivery = (deliveryDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const delivery = new Date(deliveryDate);
-    delivery.setHours(0, 0, 0, 0);
-    const diffTime = delivery.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+export default function ProjectDetail({
+  project,
+  onClose,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  onStepToggle,
+  onPriorityChange,
+  onStartAssessment,
+  getStatusBadgeClass,
+}: ProjectDetailProps) {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
-  const completedSteps = project.restorationSteps.filter(s => s.completed).length;
-  const totalSteps = project.restorationSteps.length;
-  const daysLeft = getDaysUntilDelivery(project.deliveryDate);
-  const isOverdue = project.status !== 'delivered' && daysLeft < 0;
+  const getDaysUntilDelivery = (): number => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const delivery = new Date(project.deliveryDate);
+    delivery.setHours(0, 0, 0, 0);
+    return Math.ceil((delivery.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
 
-  const scheduleSummary = useMemo(() => {
-    const scheduleData = getScheduleData();
-    const projectSchedule: ProjectSchedule | undefined = scheduleData.projectSchedules.find(
-      ps => ps.projectId === project.id
-    );
-    const scheduleItems: ScheduleItem[] = scheduleData.schedules.filter(
-      s => s.projectId === project.id && !s.completed
-    );
-
-    if (!projectSchedule && scheduleItems.length === 0) {
-      return null;
+  const getDeliveryStatus = () => {
+    const days = getDaysUntilDelivery();
+    if (project.status === 'delivered') {
+      return { text: '已交付', class: 'delivered' };
     }
-
-    const totalEstimatedHours = projectSchedule
-      ? projectSchedule.stepEstimates.reduce((sum, est) => sum + est.estimatedHours, 0)
-      : 0;
-    const scheduledHours = scheduleItems.reduce((sum, item) => sum + item.estimatedHours, 0);
-    const remainingSteps = project.restorationSteps.filter(s => !s.completed).length;
-
-    const staffInvolved = new Map<string, number>();
-    scheduleItems.forEach(item => {
-      const current = staffInvolved.get(item.staffName) || 0;
-      staffInvolved.set(item.staffName, current + item.estimatedHours);
-    });
-
-    let firstScheduledDate: string | null = null;
-    let lastScheduledDate: string | null = null;
-    if (scheduleItems.length > 0) {
-      const dates = scheduleItems.map(s => new Date(s.scheduledDate).getTime());
-      firstScheduledDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
-      lastScheduledDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+    if (days < 0) {
+      return { text: `已逾期 ${Math.abs(days)} 天`, class: 'overdue' };
     }
-
-    let isOverdueRisk = false;
-    if (lastScheduledDate && project.status !== 'delivered') {
-      const lastDate = new Date(lastScheduledDate);
-      const deliveryDate = new Date(project.deliveryDate);
-      isOverdueRisk = lastDate > deliveryDate;
+    if (days <= 3) {
+      return { text: `${days} 天后交付（紧急）`, class: 'urgent' };
     }
+    if (days <= 7) {
+      return { text: `${days} 天后交付`, class: 'soon' };
+    }
+    return { text: `${days} 天后交付`, class: '' };
+  };
 
-    const staffLoadWarnings: { name: string; date: string; hours: number }[] = [];
-    const staffDailyHours = new Map<string, Map<string, number>>();
-    scheduleItems.forEach(item => {
-      if (!staffDailyHours.has(item.staffId)) {
-        staffDailyHours.set(item.staffId, new Map());
-      }
-      const dateMap = staffDailyHours.get(item.staffId)!;
-      dateMap.set(item.scheduledDate, (dateMap.get(item.scheduledDate) || 0) + item.estimatedHours);
-    });
+  const getProgressColor = (): string => {
+    if (project.status === 'delivered') return '#10b981';
+    if (project.currentProgress >= 80) return '#10b981';
+    if (project.currentProgress >= 50) return '#3b82f6';
+    if (project.currentProgress >= 20) return '#f59e0b';
+    return '#ef4444';
+  };
 
-    staffDailyHours.forEach((dateMap, staffId) => {
-      const staff = scheduleData.staff.find(s => s.id === staffId);
-      if (!staff) return;
-      dateMap.forEach((hours, date) => {
-        if (hours > staff.dailyWorkHours) {
-          staffLoadWarnings.push({ name: staff.name, date, hours });
-        }
-      });
-    });
-
-    return {
-      projectSchedule,
-      scheduleItems,
-      totalEstimatedHours,
-      scheduledHours,
-      remainingSteps,
-      staffInvolved: Array.from(staffInvolved.entries()),
-      firstScheduledDate,
-      lastScheduledDate,
-      isOverdueRisk,
-      staffLoadWarnings,
-    };
-  }, [project]);
+  const deliveryStatus = getDeliveryStatus();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="header-left">
-            <h2>{project.bookTitle}</h2>
-            <span className={`status-badge status-${project.status}`}>
-              {STATUS_LABELS[project.status]}
-            </span>
+            <h2>《{project.bookTitle}》</h2>
+            <div className="header-tags">
+              <span className={getStatusBadgeClass(project.status)}>
+                {STATUS_LABELS[project.status]}
+              </span>
+              <span className={`priority-badge priority-${project.priority}`}>
+                {PRIORITY_LABELS[project.priority]}
+              </span>
+              <span className="project-id">{project.id}</span>
+            </div>
           </div>
           <div className="header-actions">
-            {project.status === 'pending-evaluation' && (
+            {project.status === 'pending' && !project.assessment && (
               <button className="btn btn-primary" onClick={onStartAssessment}>
-                📋 修复评估
+                📋 开始评估
               </button>
             )}
-            <button className="btn btn-secondary" onClick={onEdit}>编辑</button>
-            <button className="btn btn-danger" onClick={onDelete}>删除</button>
+            <button className="btn btn-secondary" onClick={() => onEdit(project)}>
+              ✏️ 编辑
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => onDelete(project.id)}
+            >
+              🗑️ 删除
+            </button>
             <button className="btn btn-close" onClick={onClose}>×</button>
           </div>
         </div>
@@ -131,258 +107,73 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
             <h3>基本信息</h3>
             <div className="info-grid">
               <div className="info-item">
+                <span className="info-label">书名</span>
+                <span className="info-value">{project.bookTitle}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">册数</span>
-                <span className="info-value">{project.volumeCount}册</span>
+                <span className="info-value">{project.volumeCount} 册</span>
               </div>
               <div className="info-item">
-                <span className="info-label">创建日期</span>
-                <span className="info-value">{project.createdAt}</span>
+                <span className="info-label">破损类型</span>
+                <div className="damage-tags">
+                  {project.damageTypes.map((type) => (
+                    <span key={type} className="damage-tag">{type}</span>
+                  ))}
+                </div>
               </div>
               <div className="info-item">
-                <span className="info-label">更新日期</span>
-                <span className="info-value">{project.updatedAt}</span>
+                <span className="info-label">优先级</span>
+                <select
+                  value={project.priority}
+                  onChange={(e) => onPriorityChange(project.id, e.target.value as Priority)}
+                  className="priority-select"
+                >
+                  <option value="high">紧急</option>
+                  <option value="medium">普通</option>
+                  <option value="low">低优</option>
+                </select>
+              </div>
+              <div className="info-item">
+                <span className="info-label">当前状态</span>
+                <select
+                  value={project.status}
+                  onChange={(e) => onStatusChange(project.id, e.target.value as ProjectStatus)}
+                  className="status-select"
+                >
+                  <option value="pending">待评估</option>
+                  <option value="restoring">修复中</option>
+                  <option value="drying">待晾干</option>
+                  <option value="binding">待装订</option>
+                  <option value="delivered">已交付</option>
+                </select>
               </div>
               <div className="info-item">
                 <span className="info-label">交付日期</span>
-                <span className={`info-value ${isOverdue ? 'overdue' : ''}`}>
-                  {project.deliveryDate}
-                  {project.status !== 'delivered' && (
-                    <span className="days-badge">
-                      {isOverdue ? `逾期${Math.abs(daysLeft)}天` : `剩余${daysLeft}天`}
-                    </span>
-                  )}
+                <span className={`info-value delivery-${deliveryStatus.class}`}>
+                  {formatDate(project.deliveryDate)}
+                  <span className={`delivery-badge ${deliveryStatus.class}`}>
+                    {deliveryStatus.text}
+                  </span>
                 </span>
               </div>
+              <div className="info-item">
+                <span className="info-label">创建时间</span>
+                <span className="info-value">{formatDate(project.createdAt)}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">更新时间</span>
+                <span className="info-value">{formatDate(project.updatedAt)}</span>
+              </div>
             </div>
           </div>
 
-          <div className="detail-section">
-            <h3>破损类型</h3>
-            <div className="damage-tags large">
-              {project.damageTypes.map(type => (
-                <span key={type} className="damage-tag">{type}</span>
-              ))}
-            </div>
-          </div>
-
-          {project.assessment && (
-            <div className="detail-section assessment-display">
-              <h3>修复评估单</h3>
-              <div className="assessment-completed-badge">✓ 评估已完成 · {project.assessment.completedAt}</div>
-
-              <div className="assessment-grid">
-                <div className="assessment-item">
-                  <span className="assessment-label">纸张状态</span>
-                  <span className="assessment-value">{PAPER_CONDITION_LABELS[project.assessment.paperCondition]}</span>
-                </div>
-                <div className="assessment-item">
-                  <span className="assessment-label">破损严重度</span>
-                  <span className="assessment-value">{DAMAGE_SEVERITY_LABELS[project.assessment.damageSeverity]}</span>
-                </div>
-                <div className="assessment-item">
-                  <span className="assessment-label">装帧情况</span>
-                  <span className="assessment-value">{BINDING_CONDITION_LABELS[project.assessment.bindingCondition]}</span>
-                </div>
-              </div>
-
-              {project.assessment.pollutionTypes.length > 0 && (
-                <div className="assessment-item full-width">
-                  <span className="assessment-label">污染类型</span>
-                  <div className="pollution-tags">
-                    {project.assessment.pollutionTypes.map(type => (
-                      <span key={type} className="pollution-tag">{POLLUTION_TYPE_LABELS[type]}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {project.assessment.repairSuggestion && (
-                <div className="assessment-item full-width">
-                  <span className="assessment-label">修复建议</span>
-                  <p className="assessment-text">{project.assessment.repairSuggestion}</p>
-                </div>
-              )}
-
-              <div className="assessment-item full-width">
-                <span className="assessment-label">预计工期</span>
-                <span className="assessment-value highlight">{project.assessment.estimatedDuration}</span>
-              </div>
-
-              <div className="assessment-item full-width">
-                <span className="assessment-label">材料预估</span>
-                <table className="materials-table compact">
-                  <thead>
-                    <tr>
-                      <th>材料名称</th>
-                      <th>预估数量</th>
-                      <th>单位</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {project.assessment.materialEstimates.map((material, index) => (
-                      <tr key={index}>
-                        <td>{material.name}</td>
-                        <td>{material.quantity}</td>
-                        <td>{material.unit}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="detail-section">
-            <h3>修复进度</h3>
-            <div className="progress-overview">
-              <div className="progress-bar large">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${project.currentProgress}%` }}
-                />
-              </div>
-              <span className="progress-text-large">{project.currentProgress}%</span>
-              <span className="steps-count">({completedSteps}/{totalSteps} 步骤)</span>
-            </div>
-
-            <div className="steps-list">
-              {project.restorationSteps.map((step, index) => (
-                <div
-                  key={index}
-                  className={`step-item ${step.completed ? 'completed' : ''}`}
-                  onClick={() => onStepToggle(index)}
-                >
-                  <div className="step-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={step.completed}
-                      onChange={() => {}}
-                    />
-                  </div>
-                  <div className="step-info">
-                    <span className="step-name">{step.name}</span>
-                    {step.date && <span className="step-date">完成于 {step.date}</span>}
-                  </div>
-                  {step.note && <span className="step-note">{step.note}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {scheduleSummary && (
+          {project.description && (
             <div className="detail-section">
-              <h3>排班摘要</h3>
-
-              {(scheduleSummary.isOverdueRisk || scheduleSummary.staffLoadWarnings.length > 0) && (
-                <div className="schedule-warnings">
-                  {scheduleSummary.isOverdueRisk && (
-                    <div className="schedule-warning overdue">
-                      ⚠️ 预估完成日期 {scheduleSummary.lastScheduledDate} 晚于交付日期，存在逾期风险
-                    </div>
-                  )}
-                  {scheduleSummary.staffLoadWarnings.map((warning, idx) => (
-                    <div key={idx} className="schedule-warning overload">
-                      ⚠️ {warning.name} 在 {warning.date} 负载 {warning.hours} 小时，超出日限
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="schedule-summary-grid">
-                <div className="summary-item">
-                  <span className="summary-label">预估总工时</span>
-                  <span className="summary-value">{scheduleSummary.totalEstimatedHours} 小时</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">已排班工时</span>
-                  <span className="summary-value">{scheduleSummary.scheduledHours} 小时</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">待完成步骤</span>
-                  <span className="summary-value">{scheduleSummary.remainingSteps} 步</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">已排班项</span>
-                  <span className="summary-value">{scheduleSummary.scheduleItems.length} 项</span>
-                </div>
-                {scheduleSummary.firstScheduledDate && (
-                  <div className="summary-item">
-                    <span className="summary-label">最早排期</span>
-                    <span className="summary-value">{scheduleSummary.firstScheduledDate}</span>
-                  </div>
-                )}
-                {scheduleSummary.lastScheduledDate && (
-                  <div className="summary-item">
-                    <span className="summary-label">最晚排期</span>
-                    <span className={`summary-value ${scheduleSummary.isOverdueRisk ? 'overdue' : ''}`}>
-                      {scheduleSummary.lastScheduledDate}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {scheduleSummary.staffInvolved.length > 0 && (
-                <div className="staff-involved">
-                  <h4>参与修复人员</h4>
-                  <div className="staff-involved-list">
-                    {scheduleSummary.staffInvolved.map(([name, hours], idx) => (
-                      <span key={idx} className="staff-involved-item">
-                        👤 {name} ({hours}h)
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {scheduleSummary.scheduleItems.length > 0 && (
-                <div className="upcoming-schedule">
-                  <h4>后续排程</h4>
-                  <div className="upcoming-schedule-list">
-                    {scheduleSummary.scheduleItems
-                      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-                      .slice(0, 5)
-                      .map((item) => (
-                        <div key={item.id} className="upcoming-schedule-item">
-                          <span className="schedule-date">{item.scheduledDate}</span>
-                          <span className="schedule-step">{item.stepName}</span>
-                          <span className="schedule-staff">👤 {item.staffName}</span>
-                          <span className="schedule-hours">⏱ {item.estimatedHours}h</span>
-                        </div>
-                      ))}
-                    {scheduleSummary.scheduleItems.length > 5 && (
-                      <div className="more-schedule">还有 {scheduleSummary.scheduleItems.length - 5} 项排班...</div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <h3>项目描述</h3>
+              <p className="description-text">{project.description}</p>
             </div>
           )}
-
-          <div className="detail-section">
-            <h3>材料使用</h3>
-            {project.materialsUsed.length > 0 ? (
-              <table className="materials-table">
-                <thead>
-                  <tr>
-                    <th>材料名称</th>
-                    <th>数量</th>
-                    <th>单位</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {project.materialsUsed.map((material, index) => (
-                    <tr key={index}>
-                      <td>{material.name}</td>
-                      <td>{material.quantity}</td>
-                      <td>{material.unit}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="empty-text">暂无材料记录</p>
-            )}
-          </div>
 
           {project.notes && (
             <div className="detail-section">
@@ -391,11 +182,116 @@ export default function ProjectDetail({ project, onClose, onEdit, onDelete, onSt
             </div>
           )}
 
+          {project.assessment && (
+            <div className="detail-section">
+              <h3>修复评估</h3>
+              <div className="assessment-summary">
+                <div className="info-grid">
+                  <div className="info-item">
+                    <span className="info-label">纸张状态</span>
+                    <span className="info-value">{project.assessment.paperCondition}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">破损严重度</span>
+                    <span className="info-value">{project.assessment.damageSeverity}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">预计工期</span>
+                    <span className="info-value">{project.assessment.estimatedDuration}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">评估日期</span>
+                    <span className="info-value">{formatDate(project.assessment.completedAt)}</span>
+                  </div>
+                </div>
+                {project.assessment.repairSuggestion && (
+                  <div className="suggestion-box">
+                    <h4>修复建议</h4>
+                    <p>{project.assessment.repairSuggestion}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="detail-section">
-            <ImageRecordsManager
-              project={project}
-              onUpdateRecords={onUpdateImageRecords}
-            />
+            <div className="section-header">
+              <h3>修复进度</h3>
+              <div className="progress-summary">
+                <div className="progress-bar large">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${project.currentProgress}%`,
+                      background: getProgressColor(),
+                    }}
+                  />
+                </div>
+                <span className="progress-text">{project.currentProgress}%</span>
+              </div>
+            </div>
+            <div className="steps-list">
+              {project.restorationSteps.map((step: RestorationStep, index: number) => (
+                <div
+                  key={step.id}
+                  className={`step-item ${step.completed ? 'completed' : ''}`}
+                >
+                  <label className="step-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={step.completed}
+                      onChange={() => onStepToggle(project.id, step.id)}
+                    />
+                    <span className="checkmark">✓</span>
+                  </label>
+                  <div className="step-content">
+                    <div className="step-header">
+                      <span className="step-number">{index + 1}</span>
+                      <span className="step-name">{step.name}</span>
+                    </div>
+                    {step.description && (
+                      <p className="step-description">{step.description}</p>
+                    )}
+                    <div className="step-meta">
+                      <span className="step-duration">预计 {step.estimatedDuration} 天</span>
+                      {step.completedAt && (
+                        <span className="step-completed-at">
+                          完成于 {formatDate(step.completedAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="detail-section">
+            <h3>材料使用记录</h3>
+            {project.materialsUsed.length > 0 ? (
+              <table className="materials-table">
+                <thead>
+                  <tr>
+                    <th>材料名称</th>
+                    <th>用量</th>
+                    <th>单位</th>
+                    <th>备注</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {project.materialsUsed.map((material) => (
+                    <tr key={material.id}>
+                      <td>{material.name}</td>
+                      <td>{material.quantity}</td>
+                      <td>{material.unit}</td>
+                      <td>{material.notes || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="empty-text">暂无材料使用记录</p>
+            )}
           </div>
         </div>
       </div>

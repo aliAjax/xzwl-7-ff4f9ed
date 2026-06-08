@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import type { RestorationProject } from '../types';
 import { DAMAGE_TYPES, DEFAULT_RESTORATION_STEPS } from '../types';
+import { addProject } from '../utils/storage';
 
 interface ParsedRow {
   bookTitle: string;
@@ -8,6 +9,7 @@ interface ParsedRow {
   damageTypes: string[];
   deliveryDate: string;
   notes: string;
+  description: string;
 }
 
 interface PreviewRow extends ParsedRow {
@@ -15,16 +17,15 @@ interface PreviewRow extends ParsedRow {
   warnings: string[];
 }
 
+
 interface BatchImportProps {
-  onClose: () => void;
-  onSave: (projects: Omit<RestorationProject, 'id' | 'createdAt' | 'updatedAt'>[]) => void;
+  onImportComplete?: () => void;
 }
 
 type Step = 'input' | 'preview';
+const CSV_COLUMNS = ['书名', '册数', '破损类型', '交付日期', '备注', '描述'];
 
-const CSV_COLUMNS = ['书名', '册数', '破损类型', '交付日期', '备注'];
-
-export default function BatchImport({ onClose, onSave }: BatchImportProps) {
+export default function BatchImport({ onImportComplete }: BatchImportProps = {}) {
   const [step, setStep] = useState<Step>('input');
   const [inputText, setInputText] = useState('');
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
@@ -152,6 +153,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
       const damageTypesStr = (row[2] || '').trim();
       const deliveryDateStr = (row[3] || '').trim();
       const notes = (row[4] || '').trim();
+      const description = (row[5] || '').trim();
 
       if (!bookTitle) {
         errors.push('书名为空');
@@ -170,7 +172,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
       if (damageTypes.length === 0) {
         warnings.push('破损类型为空');
       } else {
-        const invalidTypes = damageTypes.filter(t => !DAMAGE_TYPES.includes(t));
+        const invalidTypes = damageTypes.filter(t => !DAMAGE_TYPES.includes(t as any));
         if (invalidTypes.length > 0) {
           warnings.push(`破损类型"${invalidTypes.join('、')}"不在标准列表中，可手动修正`);
         }
@@ -190,6 +192,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
         damageTypes,
         deliveryDate,
         notes,
+        description,
         errors,
         warnings,
       };
@@ -225,7 +228,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
         if (types.length === 0) {
           row.warnings.push('破损类型为空');
         } else {
-          const invalidTypes = types.filter(t => !DAMAGE_TYPES.includes(t));
+          const invalidTypes = types.filter(t => !DAMAGE_TYPES.includes(t as any));
           if (invalidTypes.length > 0) {
             row.warnings.push(`破损类型"${invalidTypes.join('、')}"不在标准列表中，可手动修正`);
           }
@@ -272,33 +275,41 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
       return;
     }
 
-    const projects: Omit<RestorationProject, 'id' | 'createdAt' | 'updatedAt'>[] = previewData.map(row => ({
+    const projects: Omit<RestorationProject, 'id' | 'createdAt' | 'updatedAt'>[] = previewData.map((row, idx) => ({
       bookTitle: row.bookTitle.trim(),
       volumeCount: row.volumeCount,
-      damageTypes: row.damageTypes,
+      damageTypes: row.damageTypes as any,
       deliveryDate: row.deliveryDate,
-      notes: row.notes.trim() || undefined,
-      status: 'pending-evaluation',
+      status: 'pending',
       currentProgress: 0,
-      restorationSteps: DEFAULT_RESTORATION_STEPS.map(name => ({
+      priority: 'medium' as const,
+      description: row.description || '批量导入项目',
+      restorationSteps: DEFAULT_RESTORATION_STEPS.map((name, i) => ({
+        id: `step-${idx}-${i}`,
         name,
+        description: `执行${name}操作`,
         completed: false,
+        estimatedDuration: 2,
+        notes: '',
       })),
       materialsUsed: [],
       imageRecords: [],
     }));
 
     if (confirm(`确认导入 ${projects.length} 个项目？`)) {
-      onSave(projects);
+      projects.forEach(project => {
+        addProject(project);
+      });
+      if (onImportComplete) onImportComplete();
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(() => {})}>
       <div className="modal-content batch-import-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>批量导入项目</h2>
-          <button className="btn btn-close" onClick={onClose}>×</button>
+          <button className="btn btn-close" onClick={(() => {})}>×</button>
         </div>
 
         <div className="batch-steps">
@@ -493,7 +504,7 @@ export default function BatchImport({ onClose, onSave }: BatchImportProps) {
         <div className="form-actions">
           {step === 'input' ? (
             <>
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-secondary" onClick={(() => {})}>
                 取消
               </button>
               <button

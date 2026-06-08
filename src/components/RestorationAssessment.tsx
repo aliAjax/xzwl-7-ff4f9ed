@@ -99,14 +99,14 @@ export default function RestorationAssessment({ project, onClose, onSaveAssessme
     const now = new Date().toISOString().split('T')[0];
     const assessment: RestorationAssessment = {
       id: generateAssessmentId(),
-      paperCondition,
+      projectId: project.id,      paperCondition,
       damageSeverity,
       pollutionTypes,
       bindingCondition,
       repairSuggestion: repairSuggestion.trim(),
       recommendedTemplateId,
       estimatedDuration,
-      materialEstimates,
+      estimatedMaterials: materialEstimates,
       createdAt: now,
       completedAt: now,
     };
