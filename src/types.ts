@@ -23,6 +23,52 @@ export type BindingCondition = 'intact' | 'loose' | 'partial_damage' | 'needs_re
 
 export type StockStatus = 'normal' | 'low' | 'critical' | 'stale';
 
+export type PurchaseStatus = 'urgent' | 'need_purchase' | 'normal' | 'excess' | 'no_data';
+
+export interface ScheduledProjectUsage {
+  projectId: string;
+  projectTitle: string;
+  scheduledDate?: string;
+  estimatedQuantity: number;
+  progress: number;
+}
+
+export interface PurchaseSuggestion {
+  name: string;
+  unit: string;
+  currentStock: number;
+  minimumStock: number;
+  recentConsumptionRate: number;
+  recentDays: number;
+  hasHistoryConsumption: boolean;
+  scheduledProjectsUsage: ScheduledProjectUsage[];
+  totalScheduledUsage: number;
+  estimatedDaysLeft: number;
+  shortageDate?: string;
+  suggestedPurchaseQuantity: number;
+  suggestedPurchaseDate?: string;
+  status: PurchaseStatus;
+  warnings: string[];
+  lastCalculatedAt: string;
+  calculationPeriodDays: number;
+  stockSafetyBuffer: number;
+}
+
+export interface PurchaseSuggestionFilter {
+  status?: PurchaseStatus;
+  searchTerm?: string;
+  sortBy?: 'name' | 'currentStock' | 'shortageDate' | 'suggestedQuantity' | 'status';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface SavedPurchaseSuggestion {
+  id: string;
+  generatedAt: string;
+  periodDays: number;
+  suggestions: PurchaseSuggestion[];
+  note?: string;
+}
+
 export interface RestorationStep {
   id: string;
   name: string;
@@ -292,6 +338,14 @@ export const STOCK_STATUS_LABELS: Record<StockStatus, string> = {
   low: '即将不足',
   critical: '库存不足',
   stale: '长期未用',
+};
+
+export const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string> = {
+  urgent: '紧急采购',
+  need_purchase: '需要采购',
+  normal: '库存充足',
+  excess: '库存过剩',
+  no_data: '数据不足',
 };
 
 export const DAMAGE_TYPE_TO_TEMPLATE: Record<string, string> = {

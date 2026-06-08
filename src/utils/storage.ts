@@ -11,6 +11,7 @@ import type {
   RestorationStep,
   MaterialUsage,
   RepairReport,
+  SavedPurchaseSuggestion,
 } from '../types';
 import { STAGE_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
 
@@ -22,6 +23,7 @@ const STORAGE_KEYS = {
   SCHEDULE: 'restoration_schedule',
   HANDOVER_RECORDS: 'handover_records',
   REPAIR_REPORTS: 'repair_reports',
+  PURCHASE_SUGGESTIONS: 'purchase_suggestions',
 };
 
 export const generateId = (): string => {
@@ -1051,4 +1053,90 @@ export const getStorageRemainingSpace = (): { usedBytes: number; remainingBytes:
   const remainingBytes = Math.max(0, estimatedQuota - usedBytes);
   const percentageUsed = (usedBytes / estimatedQuota) * 100;
   return { usedBytes, remainingBytes, percentageUsed };
+};
+
+export const generatePurchaseSuggestionId = (): string => {
+  return `PS-${Date.now().toString(36).toUpperCase()}`;
+};
+
+export const getPurchaseSuggestions = (): SavedPurchaseSuggestion[] => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PURCHASE_SUGGESTIONS);
+    if (!data) {
+      return [];
+    }
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+};
+
+export const savePurchaseSuggestions = (
+  suggestions: SavedPurchaseSuggestion[]
+): { success: boolean; error?: string } => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PURCHASE_SUGGESTIONS, JSON.stringify(suggestions));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '保存采购建议失败' };
+  }
+};
+
+export const addPurchaseSuggestion = (
+  suggestion: Omit<SavedPurchaseSuggestion, 'id' | 'generatedAt'>
+): SavedPurchaseSuggestion => {
+  const suggestions = getPurchaseSuggestions();
+  const now = new Date().toISOString();
+  const newSuggestion: SavedPurchaseSuggestion = {
+    ...suggestion,
+    id: generatePurchaseSuggestionId(),
+    generatedAt: now,
+  };
+  suggestions.unshift(newSuggestion);
+  savePurchaseSuggestions(suggestions);
+  return newSuggestion;
+};
+
+export const deletePurchaseSuggestion = (
+  id: string
+): { success: boolean; error?: string } => {
+  try {
+    const suggestions = getPurchaseSuggestions();
+    const filtered = suggestions.filter(s => s.id !== id);
+    if (filtered.length === suggestions.length) {
+      return { success: false, error: '采购建议不存在' };
+    }
+    savePurchaseSuggestions(filtered);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '删除失败' };
+  }
+};
+
+export const getPurchaseSuggestionById = (
+  id: string
+): SavedPurchaseSuggestion | undefined => {
+  const suggestions = getPurchaseSuggestions();
+  return suggestions.find(s => s.id === id);
+};
+
+export const updatePurchaseSuggestionNote = (
+  id: string,
+  note: string
+): { success: boolean; error?: string; suggestion?: SavedPurchaseSuggestion } => {
+  try {
+    const suggestions = getPurchaseSuggestions();
+    const index = suggestions.findIndex(s => s.id === id);
+    if (index === -1) {
+      return { success: false, error: '采购建议不存在' };
+    }
+    suggestions[index] = {
+      ...suggestions[index],
+      note,
+    };
+    savePurchaseSuggestions(suggestions);
+    return { success: true, suggestion: suggestions[index] };
+  } catch (error) {
+    return { success: false, error: '更新失败' };
+  }
 };

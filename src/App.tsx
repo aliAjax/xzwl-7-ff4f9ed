@@ -23,8 +23,9 @@ import TemplateManager from './components/TemplateManager';
 import BatchImport from './components/BatchImport';
 import ProjectHandover from './components/ProjectHandover';
 import RepairReport from './components/RepairReport';
+import MaterialPurchaseSuggestion from './components/MaterialPurchaseSuggestion';
 
-type ViewType = 'list' | 'board' | 'inventory' | 'schedule' | 'calendar' | 'images' | 'templates' | 'import';
+type ViewType = 'list' | 'board' | 'inventory' | 'purchase' | 'schedule' | 'calendar' | 'images' | 'templates' | 'import';
 
 export default function App() {
   const [projects, setProjects] = useState<RestorationProject[]>([]);
@@ -269,6 +270,12 @@ export default function App() {
             📦 材料库存
           </button>
           <button
+            className={`nav-tab ${currentView === 'purchase' ? 'active' : ''}`}
+            onClick={() => setCurrentView('purchase')}
+          >
+            🛒 采购建议
+          </button>
+          <button
             className={`nav-tab ${currentView === 'images' ? 'active' : ''}`}
             onClick={() => setCurrentView('images')}
           >
@@ -321,6 +328,12 @@ export default function App() {
         )}
         {currentView === 'inventory' && (
           <MaterialInventory
+            projects={projects}
+            onSelectProject={handleSelectProject}
+          />
+        )}
+        {currentView === 'purchase' && (
+          <MaterialPurchaseSuggestion
             projects={projects}
             onSelectProject={handleSelectProject}
           />
