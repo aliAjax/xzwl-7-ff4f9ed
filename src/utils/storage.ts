@@ -13,6 +13,7 @@ import type {
   RepairReport,
   SavedPurchaseSuggestion,
   SavedView,
+  StockInTemplate,
 } from '../types';
 import { STAGE_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
 
@@ -20,6 +21,7 @@ const STORAGE_KEYS = {
   PROJECTS: 'restoration_projects',
   MATERIAL_STOCKS: 'material_stocks',
   TEMPLATES: 'restoration_templates',
+  STOCK_IN_TEMPLATES: 'stock_in_templates',
   SETTINGS: 'app_settings',
   SCHEDULE: 'restoration_schedule',
   HANDOVER_RECORDS: 'handover_records',
@@ -1227,4 +1229,128 @@ export const deleteSavedView = (id: string): { success: boolean; error?: string 
 export const getSavedViewById = (id: string): SavedView | undefined => {
   const views = getSavedViews();
   return views.find(v => v.id === id);
+};
+
+export const generateStockInTemplateId = (): string => {
+  return `STK-TMPL-${Date.now().toString(36)}`;
+};
+
+export const getStockInTemplates = (): StockInTemplate[] => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.STOCK_IN_TEMPLATES);
+    if (!data) {
+      const sampleData = generateSampleStockInTemplates();
+      saveStockInTemplates(sampleData);
+      return sampleData;
+    }
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+};
+
+export const saveStockInTemplates = (templates: StockInTemplate[]): { success: boolean; error?: string } => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.STOCK_IN_TEMPLATES, JSON.stringify(templates));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '保存入库模板失败' };
+  }
+};
+
+export const addStockInTemplate = (
+  template: Omit<StockInTemplate, 'id' | 'createdAt' | 'updatedAt'>
+): { success: boolean; error?: string; template?: StockInTemplate } => {
+  try {
+    const templates = getStockInTemplates();
+    const now = new Date().toISOString();
+    const newTemplate: StockInTemplate = {
+      ...template,
+      id: generateStockInTemplateId(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    templates.push(newTemplate);
+    saveStockInTemplates(templates);
+    return { success: true, template: newTemplate };
+  } catch (error) {
+    return { success: false, error: '添加入库模板失败' };
+  }
+};
+
+export const updateStockInTemplate = (
+  id: string,
+  updates: Partial<Omit<StockInTemplate, 'id' | 'createdAt'>>
+): { success: boolean; error?: string; template?: StockInTemplate } => {
+  try {
+    const templates = getStockInTemplates();
+    const index = templates.findIndex(t => t.id === id);
+    if (index === -1) {
+      return { success: false, error: '入库模板不存在' };
+    }
+    templates[index] = {
+      ...templates[index],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    saveStockInTemplates(templates);
+    return { success: true, template: templates[index] };
+  } catch (error) {
+    return { success: false, error: '更新入库模板失败' };
+  }
+};
+
+export const deleteStockInTemplate = (id: string): { success: boolean; error?: string } => {
+  try {
+    const templates = getStockInTemplates();
+    const filtered = templates.filter(t => t.id !== id);
+    if (filtered.length === templates.length) {
+      return { success: false, error: '入库模板不存在' };
+    }
+    saveStockInTemplates(filtered);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: '删除入库模板失败' };
+  }
+};
+
+export const getStockInTemplateById = (id: string): StockInTemplate | undefined => {
+  const templates = getStockInTemplates();
+  return templates.find(t => t.id === id);
+};
+
+const generateSampleStockInTemplates = (): StockInTemplate[] => {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: 'stk-tmpl-1',
+      name: '修复纸',
+      supplier: '安徽宣纸厂',
+      unit: '张',
+      defaultUnitPrice: 5.5,
+      note: '常用修复用纸，规格30×40cm',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'stk-tmpl-2',
+      name: '浆糊',
+      supplier: '自制',
+      unit: '克',
+      defaultUnitPrice: 0.5,
+      note: '小麦淀粉自制浆糊',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'stk-tmpl-3',
+      name: '清洁剂',
+      supplier: '化工商店',
+      unit: '毫升',
+      defaultUnitPrice: 2,
+      note: '专业纸张清洁剂',
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
 };

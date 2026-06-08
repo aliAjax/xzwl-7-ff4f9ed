@@ -382,6 +382,17 @@ export const SEVERITY_DURATION_ESTIMATE: Record<DamageSeverity, string> = {
   critical: '30-60 工作日',
 };
 
+export interface StockInTemplate {
+  id: string;
+  name: string;
+  supplier: string;
+  unit: string;
+  defaultUnitPrice?: number;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const BACKUP_SCHEMA_VERSION = '1.0.0';
 
 export interface BackupMetadata {

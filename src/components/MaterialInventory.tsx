@@ -1,11 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { RestorationProject, InventorySummary, StockStatus, MaterialStock } from '../types';
+import type { RestorationProject, InventorySummary, StockStatus, MaterialStock, StockInTemplate } from '../types';
 import { STATUS_LABELS, STOCK_STATUS_LABELS } from '../types';
 import {
   getMaterialStocks,
   updateStockSettings,
   addStockInRecord,
   deleteStockInRecord,
+  getStockInTemplates,
+  addStockInTemplate,
+  updateStockInTemplate,
+  deleteStockInTemplate,
 } from '../utils/storage';
 
 interface MaterialInventoryProps {
@@ -31,6 +35,18 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [stockInTemplates, setStockInTemplates] = useState<StockInTemplate[]>([]);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<StockInTemplate | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    supplier: '',
+    unit: '',
+    defaultUnitPrice: '',
+    note: '',
+  });
 
   const [stockInForm, setStockInForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -47,7 +63,12 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
 
   useEffect(() => {
     setMaterialStocks(getMaterialStocks());
+    setStockInTemplates(getStockInTemplates());
   }, []);
+
+  const refreshTemplates = () => {
+    setStockInTemplates(getStockInTemplates());
+  };
 
 
   const refreshStockData = () => {
@@ -372,6 +393,101 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
     }
   };
 
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (!templateId) return;
+
+    const template = stockInTemplates.find(t => t.id === templateId);
+    if (template) {
+      setStockInForm({
+        ...stockInForm,
+        supplier: template.supplier,
+        unitPrice: template.defaultUnitPrice ? template.defaultUnitPrice.toString() : '',
+        note: template.note || '',
+      });
+    }
+  };
+
+  const openAddTemplateForm = () => {
+    setEditingTemplate(null);
+    setTemplateForm({
+      name: selectedMaterial?.name || '',
+      supplier: '',
+      unit: selectedMaterial?.unit || '',
+      defaultUnitPrice: '',
+      note: '',
+    });
+    setShowTemplateForm(true);
+  };
+
+  const openEditTemplateForm = (template: StockInTemplate) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      supplier: template.supplier,
+      unit: template.unit,
+      defaultUnitPrice: template.defaultUnitPrice ? template.defaultUnitPrice.toString() : '',
+      note: template.note || '',
+    });
+    setShowTemplateForm(true);
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateForm.name.trim()) {
+      setMessage({ type: 'error', text: '请输入材料名称' });
+      return;
+    }
+    if (!templateForm.supplier.trim()) {
+      setMessage({ type: 'error', text: '请输入供应商' });
+      return;
+    }
+    if (!templateForm.unit.trim()) {
+      setMessage({ type: 'error', text: '请输入单位' });
+      return;
+    }
+
+    const templateData = {
+      name: templateForm.name.trim(),
+      supplier: templateForm.supplier.trim(),
+      unit: templateForm.unit.trim(),
+      defaultUnitPrice: templateForm.defaultUnitPrice ? parseFloat(templateForm.defaultUnitPrice) : undefined,
+      note: templateForm.note.trim() || undefined,
+    };
+
+    let result;
+    if (editingTemplate) {
+      result = updateStockInTemplate(editingTemplate.id, templateData);
+    } else {
+      result = addStockInTemplate(templateData);
+    }
+
+    if (result.success) {
+      setMessage({ type: 'success', text: editingTemplate ? '模板更新成功' : '模板创建成功' });
+      setShowTemplateForm(false);
+      setEditingTemplate(null);
+      refreshTemplates();
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setMessage({ type: 'error', text: result.error || '保存失败' });
+    }
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    if (!window.confirm('确定要删除这个入库模板吗？\n删除模板不会影响已生成的入库记录。')) return;
+
+    const result = deleteStockInTemplate(templateId);
+    if (result.success) {
+      setMessage({ type: 'success', text: '模板已删除' });
+      refreshTemplates();
+      if (selectedTemplateId === templateId) {
+        setSelectedTemplateId('');
+      }
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setMessage({ type: 'error', text: result.error || '删除失败' });
+    }
+  };
+
   const openMaterialDetail = (material: InventorySummary) => {
     setSelectedMaterial(material);
     setSettingsForm({
@@ -381,6 +497,7 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
     setShowStockInForm(false);
     setShowSettingsForm(false);
     setMessage(null);
+    setSelectedTemplateId('');
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -499,6 +616,13 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
           <div className="result-count">
             共 {filteredAndSortedMaterials.length} 条记录
           </div>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowTemplateManager(true)}
+          >
+            📋 快速入库模板
+          </button>
         </div>
 
         <div className="table-container">
@@ -653,7 +777,29 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
 
               {showStockInForm && (
                 <div className="form-section">
-                  <h3>材料入库</h3>
+                  <div className="form-section-header">
+                    <h3>材料入库</h3>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={openAddTemplateForm}
+                    >
+                      + 保存为模板
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>选择快速入库模板</label>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => handleTemplateSelect(e.target.value)}
+                    >
+                      <option value="">-- 不使用模板 --</option>
+                      {stockInTemplates.map(template => (
+                        <option key={template.id} value={template.id}>
+                          {template.name} ({template.supplier})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="form-row">
                     <div className="form-group">
                       <label>入库日期</label>
@@ -879,6 +1025,153 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
                 ) : (
                   <p className="empty-text">暂无关联项目</p>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTemplateManager && (
+        <div className="modal-overlay" onClick={() => setShowTemplateManager(false)}>
+          <div className="modal-content detail-modal large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>快速入库模板管理</h2>
+              <div className="header-actions">
+                <button className="btn btn-primary" onClick={openAddTemplateForm}>
+                  + 新建模板
+                </button>
+                <button className="btn btn-close" onClick={() => setShowTemplateManager(false)}>×</button>
+              </div>
+            </div>
+            <div className="modal-body">
+              {message && (
+                <div className={`message-banner ${message.type}`}>
+                  {message.text}
+                </div>
+              )}
+              {stockInTemplates.length > 0 ? (
+                <table className="materials-table">
+                  <thead>
+                    <tr>
+                      <th>材料名称</th>
+                      <th>单位</th>
+                      <th>供应商</th>
+                      <th>默认单价</th>
+                      <th>备注</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockInTemplates.map(template => (
+                      <tr key={template.id}>
+                        <td>{template.name}</td>
+                        <td>{template.unit}</td>
+                        <td>{template.supplier}</td>
+                        <td>{template.defaultUnitPrice ? `¥${template.defaultUnitPrice.toFixed(2)}` : '-'}</td>
+                        <td>{template.note || '-'}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="btn-icon btn-secondary"
+                              onClick={() => openEditTemplateForm(template)}
+                              title="编辑"
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className="btn-icon btn-danger"
+                              onClick={() => handleDeleteTemplate(template.id)}
+                              title="删除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-list">
+                  <p>暂无入库模板，点击上方按钮创建</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTemplateForm && (
+        <div className="modal-overlay" onClick={() => setShowTemplateForm(false)}>
+          <div className="modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingTemplate ? '编辑入库模板' : '新建入库模板'}</h2>
+              <button className="btn btn-close" onClick={() => setShowTemplateForm(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {message && (
+                <div className={`message-banner ${message.type}`}>
+                  {message.text}
+                </div>
+              )}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>材料名称 *</label>
+                  <input
+                    type="text"
+                    value={templateForm.name}
+                    onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                    placeholder="输入材料名称"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>单位 *</label>
+                  <input
+                    type="text"
+                    value={templateForm.unit}
+                    onChange={(e) => setTemplateForm({ ...templateForm, unit: e.target.value })}
+                    placeholder="如：张、克、毫升"
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>供应商 *</label>
+                  <input
+                    type="text"
+                    value={templateForm.supplier}
+                    onChange={(e) => setTemplateForm({ ...templateForm, supplier: e.target.value })}
+                    placeholder="输入供应商名称"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>默认单价 (元，可选)</label>
+                  <input
+                    type="number"
+                    value={templateForm.defaultUnitPrice}
+                    onChange={(e) => setTemplateForm({ ...templateForm, defaultUnitPrice: e.target.value })}
+                    placeholder="输入默认单价"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>备注 (可选)</label>
+                <textarea
+                  value={templateForm.note}
+                  onChange={(e) => setTemplateForm({ ...templateForm, note: e.target.value })}
+                  placeholder="输入备注信息"
+                  rows={3}
+                />
+              </div>
+              <div className="form-actions-inline">
+                <button className="btn btn-primary" onClick={handleSaveTemplate}>
+                  {editingTemplate ? '保存修改' : '创建模板'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowTemplateForm(false)}>
+                  取消
+                </button>
               </div>
             </div>
           </div>
