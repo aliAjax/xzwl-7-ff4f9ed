@@ -56,13 +56,16 @@ const calculateRecentConsumptionRate = (
       const daysSince = getDaysSince(useDate.toISOString());
       
       if (daysSince <= recentDays) {
-        const materialInProject = project.materialsUsed.find(
+        const materialsInProject = project.materialsUsed.filter(
           m => m.name === materialName && m.unit === unit
         );
-        if (materialInProject) {
-          const quantity = parseFloat(materialInProject.quantity) || 0;
-          if (quantity > 0) {
-            totalUsed += quantity;
+        if (materialsInProject.length > 0) {
+          const projectTotal = materialsInProject.reduce(
+            (sum, m) => sum + (parseFloat(m.quantity) || 0),
+            0
+          );
+          if (projectTotal > 0) {
+            totalUsed += projectTotal;
             usedCount++;
             
             if (!earliestDate || useDate < earliestDate) {
@@ -114,10 +117,10 @@ const getScheduledProjectsUsage = (
   projects.forEach(project => {
     if (project.status === 'delivered') return;
 
-    const materialInProject = project.materialsUsed.find(
+    const materialsInProject = project.materialsUsed.filter(
       m => m.name === materialName && m.unit === unit
     );
-    if (!materialInProject) return;
+    if (materialsInProject.length === 0) return;
 
     const totalSteps = project.restorationSteps.length;
     const completedSteps = project.restorationSteps.filter(s => s.completed).length;
@@ -125,7 +128,10 @@ const getScheduledProjectsUsage = (
     
     if (remainingSteps <= 0) return;
 
-    const totalQuantity = parseFloat(materialInProject.quantity) || 0;
+    const totalQuantity = materialsInProject.reduce(
+      (sum, m) => sum + (parseFloat(m.quantity) || 0),
+      0
+    );
     if (totalQuantity <= 0) return;
 
     const progress = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
@@ -174,11 +180,14 @@ const getCurrentStock = (
   
   let totalUsed = 0;
   projects.forEach(project => {
-    const materialInProject = project.materialsUsed.find(
+    const materialsInProject = project.materialsUsed.filter(
       m => m.name === materialName && m.unit === unit
     );
-    if (materialInProject) {
-      totalUsed += parseFloat(materialInProject.quantity) || 0;
+    if (materialsInProject.length > 0) {
+      totalUsed += materialsInProject.reduce(
+        (sum, m) => sum + (parseFloat(m.quantity) || 0),
+        0
+      );
     }
   });
 
