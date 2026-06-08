@@ -80,14 +80,11 @@ const STATUS_MAP: Record<string, ProjectStatus> = {
   'delivered': 'delivered',
 };
 
-const CSV_COLUMNS = ['书名', '册数', '破损类型', '交付日期', '备注', '描述', '修复步骤', '材料用量', '优先级', '状态'];
-
 export default function BatchImport({ onImportComplete }: BatchImportProps = {}) {
   const [step, setStep] = useState<Step>('input');
   const [inputText, setInputText] = useState('');
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [columnOrder, setColumnOrder] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,8 +309,6 @@ export default function BatchImport({ onImportComplete }: BatchImportProps = {})
       };
       order = defaultOrder;
     }
-    setColumnOrder(order);
-
     const defaultDate = (() => {
       const d = new Date();
       d.setDate(d.getDate() + 30);
@@ -359,12 +354,12 @@ export default function BatchImport({ onImportComplete }: BatchImportProps = {})
       if (bookTitle.trim()) {
         if (existingKeys.has(duplicateKey)) {
           isDuplicate = true;
-          errors.push(`项目"${bookTitle}"(${volumeCount}册)已存在于数据库中`);
+          warnings.push(`项目"${bookTitle}"(${volumeCount}册)已存在于数据库中，确认导入时将跳过`);
         }
         if (rowKeys.has(duplicateKey)) {
           isDuplicate = true;
           const prevRows = rowKeys.get(duplicateKey)!;
-          errors.push(`与第${prevRows.map(r => r + 1).join('、')}行的项目重复`);
+          warnings.push(`与第${prevRows.map(r => r + 1).join('、')}行的项目重复，确认导入时将跳过`);
         }
         if (!rowKeys.has(duplicateKey)) {
           rowKeys.set(duplicateKey, []);
@@ -429,6 +424,7 @@ export default function BatchImport({ onImportComplete }: BatchImportProps = {})
       if (dupRows && dupRows.length > 1) {
         return {
           ...row,
+          isDuplicate: true,
           duplicateWith: dupRows.filter((_, i) => i !== dupRows.indexOf(preview.indexOf(row))),
         };
       }
