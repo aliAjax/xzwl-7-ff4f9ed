@@ -127,7 +127,7 @@ export default function ProjectForm({ project, onSave, onClose }: ProjectFormPro
     const template = templates.find(t => t.id === templateId);
     if (!template) return;
 
-    const newSteps: RestorationStep[] = template.steps.map((stepName, index) => ({
+    const newSteps: RestorationStep[] = template.steps.map((stepName) => ({
       id: generateId(),
       name: stepName,
       description: '',

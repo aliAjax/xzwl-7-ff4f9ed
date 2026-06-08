@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { RestorationProject, ProjectStatus, Priority } from '../types';
-import { STATUS_LABELS, PRIORITY_LABELS } from '../types';
+import { STATUS_LABELS } from '../types';
 
 interface ProjectListProps {
   projects: RestorationProject[];
