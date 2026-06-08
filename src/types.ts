@@ -414,6 +414,44 @@ export interface HandoverRecord {
   updatedAt: string;
 }
 
+export interface ReportCompletedStep {
+  stepId: string;
+  stepName: string;
+  completedAt: string;
+  notes?: string;
+}
+
+export interface ReportMaterialSummary {
+  name: string;
+  quantity: string;
+  unit: string;
+  notes?: string;
+}
+
+export interface ReportImageSummary {
+  stage: string;
+  count: number;
+  description: string;
+}
+
+export interface RepairReport {
+  id: string;
+  projectId: string;
+  bookTitle: string;
+  projectNumber: string;
+  volumeCount: number;
+  currentStatus: ProjectStatus;
+  assessmentConclusion: string;
+  damageTypes: DamageType[];
+  completedSteps: ReportCompletedStep[];
+  materialsSummary: ReportMaterialSummary[];
+  imagesSummary: ReportImageSummary[];
+  deliveryDate: string;
+  reportNotes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const MATERIAL_ESTIMATES: Record<string, MaterialUsage[]> = {
   'tmpl_insect': [
     { id: '1', name: '修复纸', quantity: '20', unit: '张' },

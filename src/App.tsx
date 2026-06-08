@@ -22,6 +22,7 @@ import ImageRecordsManager from './components/ImageRecordsManager';
 import TemplateManager from './components/TemplateManager';
 import BatchImport from './components/BatchImport';
 import ProjectHandover from './components/ProjectHandover';
+import RepairReport from './components/RepairReport';
 
 type ViewType = 'list' | 'board' | 'inventory' | 'schedule' | 'calendar' | 'images' | 'templates' | 'import';
 
@@ -35,6 +36,7 @@ export default function App() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedImageProject, setSelectedImageProject] = useState<RestorationProject | null>(null);
   const [showHandover, setShowHandover] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     setProjects(getProjects());
@@ -76,6 +78,7 @@ export default function App() {
   const handleCloseDetail = () => {
     setSelectedProject(null);
     setShowHandover(false);
+    setShowReport(false);
   };
 
   const handleNewProject = () => {
@@ -409,6 +412,7 @@ export default function App() {
           onPriorityChange={handlePriorityChange}
           onStartAssessment={() => setShowAssessment(true)}
           onOpenHandover={() => setShowHandover(true)}
+          onOpenReport={() => setShowReport(true)}
           getStatusBadgeClass={getStatusBadgeClass}
         />
       )}
@@ -417,6 +421,14 @@ export default function App() {
         <ProjectHandover
           project={selectedProject}
           onClose={() => setShowHandover(false)}
+          getStatusBadgeClass={getStatusBadgeClass}
+        />
+      )}
+
+      {selectedProject && showReport && (
+        <RepairReport
+          project={selectedProject}
+          onClose={() => setShowReport(false)}
           getStatusBadgeClass={getStatusBadgeClass}
         />
       )}

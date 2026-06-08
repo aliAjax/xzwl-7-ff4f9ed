@@ -11,6 +11,7 @@ interface ProjectDetailProps {
   onPriorityChange: (id: string, priority: Priority) => void;
   onStartAssessment: () => void;
   onOpenHandover: () => void;
+  onOpenReport: () => void;
   getStatusBadgeClass: (status: ProjectStatus) => string;
 }
 
@@ -24,6 +25,7 @@ export default function ProjectDetail({
   onPriorityChange,
   onStartAssessment,
   onOpenHandover,
+  onOpenReport,
   getStatusBadgeClass,
 }: ProjectDetailProps) {
   const formatDate = (dateStr: string) => {
@@ -93,6 +95,9 @@ export default function ProjectDetail({
             )}
             <button className="btn btn-secondary" onClick={onOpenHandover}>
               📑 交接单
+            </button>
+            <button className="btn btn-secondary" onClick={onOpenReport}>
+              📄 修复报告
             </button>
             <button className="btn btn-secondary" onClick={() => onEdit(project)}>
               ✏️ 编辑
