@@ -291,17 +291,33 @@ export default function MaterialPurchaseSuggestion({
       
       setSuggestions(prev => {
         const now = new Date().toISOString();
-        return prev.map(suggestion => {
-          const matched = results.find(r => r.name === suggestion.name && r.unit === suggestion.unit);
-          if (matched) {
-            return {
-              ...suggestion,
+        const convertedMeta = new Map<string, Pick<PurchaseSuggestion, 'convertedToStockIn' | 'convertedAt' | 'stockInRecordId'>>();
+
+        prev.forEach(suggestion => {
+          if (suggestion.convertedToStockIn) {
+            convertedMeta.set(getSuggestionKey(suggestion), {
               convertedToStockIn: true,
-              convertedAt: now,
-              stockInRecordId: matched.stockInRecordId,
-            };
+              convertedAt: suggestion.convertedAt,
+              stockInRecordId: suggestion.stockInRecordId,
+            });
           }
-          return suggestion;
+        });
+
+        results.forEach(result => {
+          convertedMeta.set(`${result.name}-${result.unit}`, {
+            convertedToStockIn: true,
+            convertedAt: now,
+            stockInRecordId: result.stockInRecordId,
+          });
+        });
+
+        return generatePurchaseSuggestions(projects, {
+          periodDays,
+          recentDays,
+          safetyBuffer,
+        }).map(suggestion => {
+          const meta = convertedMeta.get(getSuggestionKey(suggestion));
+          return meta ? { ...suggestion, ...meta } : suggestion;
         });
       });
       
