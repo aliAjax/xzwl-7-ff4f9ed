@@ -12,8 +12,13 @@ import {
   generateStaffId,
   generateScheduleItemId,
   getDefaultStepHours,
+  detectStaffWorkloadConflicts,
+  getStaffConflicts,
+  getProjectConflicts,
+  getDateConflicts,
 } from '../utils/storage';
 import { STATUS_LABELS } from '../types';
+import type { StaffWorkloadConflict } from '../types';
 
 type ScheduleTab = 'staff' | 'projects' | 'calendar';
 
@@ -32,6 +37,8 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
   const [selectedProject, setSelectedProject] = useState<RestorationProject | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [, setWorkloadConflicts] = useState<StaffWorkloadConflict[]>([]);
+  const [showConflictDetail, setShowConflictDetail] = useState<StaffWorkloadConflict | null>(null);
 
   useEffect(() => {
     const data = getScheduleData();
@@ -39,6 +46,11 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     setSchedules(data.schedules);
     setProjectSchedules(data.projectSchedules);
   }, []);
+
+  useEffect(() => {
+    const conflicts = detectStaffWorkloadConflicts(staff, schedules);
+    setWorkloadConflicts(conflicts);
+  }, [staff, schedules]);
 
   useEffect(() => {
     if (message) {
@@ -837,30 +849,68 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
               </div>
             ) : (
               <div className="staff-grid">
-                {staff.map(s => (
-                  <div key={s.id} className="staff-card">
-                    <div className="staff-card-header">
-                      <div className="staff-avatar">{s.name.charAt(0)}</div>
-                      <div className="staff-info">
-                        <div className="staff-name">{s.name}</div>
-                        <div className="staff-hours">每日可用: {(s.dailyWorkHours || 8)}小时</div>
+                {staff.map(s => {
+                  const staffConflicts = getStaffConflicts(s.id, staff, schedules);
+                  return (
+                    <div key={s.id} className={`staff-card ${staffConflicts.length > 0 ? 'has-conflict' : ''}`}>
+                      <div className="staff-card-header">
+                        <div className="staff-avatar">{s.name.charAt(0)}</div>
+                        <div className="staff-info">
+                          <div className="staff-name">
+                            {s.name}
+                            {staffConflicts.length > 0 && (
+                              <span 
+                                className="conflict-badge"
+                                title={`${staffConflicts.length} 天负载冲突`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowConflictDetail(staffConflicts[0]);
+                                }}
+                              >
+                                ⚠️ {staffConflicts.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="staff-hours">每日可用: {(s.dailyWorkHours || 8)}小时</div>
+                        </div>
+                      </div>
+                      {(s.skills || []).length > 0 && (
+                        <div className="staff-skills">
+                          {(s.skills || []).map((skill, idx) => (
+                            <span key={idx} className="skill-tag">{skill}</span>
+                          ))}
+                        </div>
+                      )}
+                      {s.phone && <div className="staff-phone">📞 {s.phone}</div>}
+                      {s.note && <div className="staff-note">{s.note}</div>}
+                      {staffConflicts.length > 0 && (
+                        <div className="staff-conflicts">
+                          <div className="conflicts-title">负载冲突：</div>
+                          {staffConflicts.slice(0, 3).map((conflict, idx) => (
+                            <div 
+                              key={idx} 
+                              className="conflict-item"
+                              onClick={() => setShowConflictDetail(conflict)}
+                            >
+                              <span className="conflict-date">{conflict.date}</span>
+                              <span className="conflict-hours">
+                                {conflict.scheduledHours}h / {conflict.maxHours}h
+                                <span className="overload-hours">(超{conflict.overloadHours}h)</span>
+                              </span>
+                            </div>
+                          ))}
+                          {staffConflicts.length > 3 && (
+                            <div className="conflict-more">还有 {staffConflicts.length - 3} 天冲突...</div>
+                          )}
+                        </div>
+                      )}
+                      <div className="staff-actions">
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleEditStaff(s)}>编辑</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStaff(s.id)}>删除</button>
                       </div>
                     </div>
-                    {(s.skills || []).length > 0 && (
-                      <div className="staff-skills">
-                        {(s.skills || []).map((skill, idx) => (
-                          <span key={idx} className="skill-tag">{skill}</span>
-                        ))}
-                      </div>
-                    )}
-                    {s.phone && <div className="staff-phone">📞 {s.phone}</div>}
-                    {s.note && <div className="staff-note">{s.note}</div>}
-                    <div className="staff-actions">
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleEditStaff(s)}>编辑</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStaff(s.id)}>删除</button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -885,12 +935,13 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                   const projectSchedule = getProjectSchedule(project.id);
                   const projectItems = getProjectScheduleItems(project.id);
                   const projectRisks = getProjectRisks(project);
+                  const projectConflicts = getProjectConflicts(project.id, staff, schedules);
                   const daysLeft = getDaysUntilDelivery(project.deliveryDate);
                   const isOverdue = daysLeft < 0;
                   const isSelected = selectedProject?.id === project.id;
 
                   return (
-                    <div key={project.id} className={`project-schedule-card ${isSelected ? 'expanded' : ''}`}>
+                    <div key={project.id} className={`project-schedule-card ${isSelected ? 'expanded' : ''} ${projectConflicts.length > 0 ? 'has-conflict' : ''}`}>
                       <div
                         className="project-schedule-header"
                         onClick={() => setSelectedProject(isSelected ? null : project)}
@@ -900,6 +951,14 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                           <span className={`status-badge status-${project.status}`}>
                             {STATUS_LABELS[project.status]}
                           </span>
+                          {projectConflicts.length > 0 && (
+                            <span 
+                              className="conflict-badge"
+                              title={`导致 ${projectConflicts.length} 处人员负载冲突`}
+                            >
+                              ⚠️ 人员冲突
+                            </span>
+                          )}
                         </div>
                         <div className="project-meta">
                           <span className={`delivery-info ${isOverdue ? 'overdue' : ''}`}>
@@ -925,6 +984,34 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                               {projectRisks.map((risk, idx) => (
                                 <div key={idx} className={`project-risk ${risk.type}`}>
                                   ⚠️ {risk.message}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {projectConflicts.length > 0 && (
+                            <div className="project-conflicts">
+                              <div className="conflicts-section-title">🚨 人员负载冲突（{projectConflicts.length} 处）</div>
+                              {projectConflicts.map((conflict, idx) => (
+                                <div 
+                                  key={idx} 
+                                  className="project-conflict-item"
+                                  onClick={() => setShowConflictDetail(conflict)}
+                                >
+                                  <div className="conflict-header">
+                                    <span className="conflict-staff">👤 {conflict.staffName}</span>
+                                    <span className="conflict-date">📅 {conflict.date}</span>
+                                    <span className="conflict-hours">
+                                      ⏱ {conflict.scheduledHours}h / {conflict.maxHours}h 
+                                      <span className="overload">(超{conflict.overloadHours}h)</span>
+                                    </span>
+                                  </div>
+                                  <div className="conflict-related-steps">
+                                    涉及步骤：{conflict.relatedProjects
+                                      .filter(p => p.projectId === project.id)
+                                      .map(p => `${p.stepName}(${p.estimatedHours}h)`)
+                                      .join('、')}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1131,52 +1218,76 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                 <div key={day} className="calendar-weekday">{day}</div>
               ))}
 
-              {calendarDays.map((day, idx) => (
-                <div
-                  key={idx}
-                  className={`calendar-day ${day.isCurrentMonth ? '' : 'other-month'} ${day.isToday ? 'today' : ''} ${day.schedules.length > 0 ? 'has-schedules' : ''}`}
-                >
-                  <div className="day-number">{day.date?.getDate()}</div>
-
-                  {day.staffLoads.length > 0 && (
-                    <div className="day-staff-loads">
-                      {day.staffLoads.map((load, loadIdx) => (
-                        <div
-                          key={loadIdx}
-                          className={`staff-load ${load.overload ? 'overload' : ''}`}
-                          title={`${load.name}: ${load.hours}/${load.maxHours}小时`}
-                        >
-                          <span className="load-name">{load.name}</span>
-                          <span className="load-hours">{load.hours}h</span>
-                        </div>
-                      ))}
+              {calendarDays.map((day, idx) => {
+                const dayConflicts = day.dateStr ? getDateConflicts(day.dateStr, staff, schedules) : [];
+                const hasOverload = day.staffLoads.some(l => l.overload);
+                return (
+                  <div
+                    key={idx}
+                    className={`calendar-day ${day.isCurrentMonth ? '' : 'other-month'} ${day.isToday ? 'today' : ''} ${day.schedules.length > 0 ? 'has-schedules' : ''} ${hasOverload ? 'has-conflict' : ''}`}
+                  >
+                    <div className="day-number">
+                      {day.date?.getDate()}
+                      {hasOverload && (
+                        <span className="day-conflict-indicator" title="存在人员负载冲突">⚠️</span>
+                      )}
                     </div>
-                  )}
 
-                  <div className="day-schedules">
-                    {day.schedules.slice(0, 2).map(s => {
-                      const project = projects.find(p => p.id === s.projectId);
-                      const isOverdue = project && getDaysUntilDelivery(project.deliveryDate) < 0;
-                      return (
-                        <div
-                          key={s.id}
-                          className={`schedule-chip ${isOverdue ? 'overdue' : ''}`}
-                          onClick={() => {
-                            if (project) onSelectProject(project);
-                          }}
-                          title={`《${s.projectTitle}》- ${s.stepName} - ${s.staffName} - ${s.estimatedHours}h`}
-                        >
-                          <span className="chip-title">{s.projectTitle}</span>
-                          <span className="chip-step">{s.stepName}</span>
-                        </div>
-                      );
-                    })}
-                    {day.schedules.length > 2 && (
-                      <div className="more-schedules">+{day.schedules.length - 2} 更多</div>
+                    {day.staffLoads.length > 0 && (
+                      <div className="day-staff-loads">
+                        {day.staffLoads.map((load, loadIdx) => {
+                          const conflict = dayConflicts.find(c => c.staffId === load.staffId);
+                          return (
+                            <div
+                              key={loadIdx}
+                              className={`staff-load ${load.overload ? 'overload' : ''}`}
+                              title={`${load.name}: ${load.hours}/${load.maxHours}小时${load.overload ? ' - 点击查看冲突详情' : ''}`}
+                              onClick={(e) => {
+                                if (load.overload && conflict) {
+                                  e.stopPropagation();
+                                  setShowConflictDetail(conflict);
+                                }
+                              }}
+                              style={{ cursor: load.overload ? 'pointer' : 'default' }}
+                            >
+                              <span className="load-name">{load.name}</span>
+                              <span className="load-hours">{load.hours}h</span>
+                              {load.overload && <span className="load-overload-icon">⚠️</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
+
+                    <div className="day-schedules">
+                      {day.schedules.slice(0, 2).map(s => {
+                        const project = projects.find(p => p.id === s.projectId);
+                        const isOverdue = project && getDaysUntilDelivery(project.deliveryDate) < 0;
+                        const hasConflict = dayConflicts.some(c => 
+                          c.relatedProjects.some(p => p.projectId === s.projectId)
+                        );
+                        return (
+                          <div
+                            key={s.id}
+                            className={`schedule-chip ${isOverdue ? 'overdue' : ''} ${hasConflict ? 'has-conflict' : ''}`}
+                            onClick={() => {
+                              if (project) onSelectProject(project);
+                            }}
+                            title={`${hasConflict ? '⚠️ ' : ''}《${s.projectTitle}》- ${s.stepName} - ${s.staffName} - ${s.estimatedHours}h${hasConflict ? ' - 该项目导致人员负载冲突' : ''}`}
+                          >
+                            <span className="chip-title">{s.projectTitle}</span>
+                            <span className="chip-step">{s.stepName}</span>
+                            {hasConflict && <span className="chip-conflict-icon">⚠️</span>}
+                          </div>
+                        );
+                      })}
+                      {day.schedules.length > 2 && (
+                        <div className="more-schedules">+{day.schedules.length - 2} 更多</div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -1187,6 +1298,18 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
           staff={editingStaff}
           onClose={() => { setShowStaffForm(false); setEditingStaff(null); }}
           onSave={handleSaveStaff}
+        />
+      )}
+
+      {showConflictDetail && (
+        <ConflictDetailModal
+          conflict={showConflictDetail}
+          projects={projects}
+          onClose={() => setShowConflictDetail(null)}
+          onSelectProject={(project) => {
+            setShowConflictDetail(null);
+            onSelectProject(project);
+          }}
         />
       )}
     </div>
@@ -1330,6 +1453,127 @@ function StaffForm({ staff, onClose, onSave }: StaffFormProps) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+interface ConflictDetailModalProps {
+  conflict: StaffWorkloadConflict;
+  projects: RestorationProject[];
+  onClose: () => void;
+  onSelectProject: (project: RestorationProject) => void;
+}
+
+function ConflictDetailModal({ conflict, projects, onClose, onSelectProject }: ConflictDetailModalProps) {
+  const getProjectById = (projectId: string) => projects.find(p => p.id === projectId);
+
+  const groupedByProject = conflict.relatedProjects.reduce((acc, item) => {
+    if (!acc[item.projectId]) {
+      acc[item.projectId] = [];
+    }
+    acc[item.projectId].push(item);
+    return acc;
+  }, {} as Record<string, typeof conflict.relatedProjects>);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="header-left">
+            <h2>🚨 人员负载冲突详情</h2>
+            <span className="conflict-summary-badge">
+              {conflict.staffName} · {conflict.date}
+            </span>
+          </div>
+          <button className="btn btn-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="modal-body">
+          <div className="conflict-overview">
+            <div className="conflict-info-card">
+              <div className="conflict-info-item">
+                <span className="info-label">修复人员</span>
+                <span className="info-value">👤 {conflict.staffName}</span>
+              </div>
+              <div className="conflict-info-item">
+                <span className="info-label">日期</span>
+                <span className="info-value">📅 {conflict.date}</span>
+              </div>
+              <div className="conflict-info-item">
+                <span className="info-label">每日工时上限</span>
+                <span className="info-value">⏱ {conflict.maxHours} 小时</span>
+              </div>
+              <div className="conflict-info-item">
+                <span className="info-label">已安排工时</span>
+                <span className="info-value overload">⏱ {conflict.scheduledHours} 小时</span>
+              </div>
+              <div className="conflict-info-item highlight">
+                <span className="info-label">超出工时</span>
+                <span className="info-value danger">⚠️ {conflict.overloadHours} 小时</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="conflict-projects-section">
+            <h3>涉及项目（{conflict.relatedProjects.length} 项工作）</h3>
+            <p className="section-hint">点击项目卡片可跳转到项目详情页进行调整</p>
+            
+            <div className="conflict-projects-list">
+              {Object.entries(groupedByProject).map(([projectId, items]) => {
+                const project = getProjectById(projectId);
+                const totalHours = items.reduce((sum, item) => sum + item.estimatedHours, 0);
+                return (
+                  <div 
+                    key={projectId} 
+                    className="conflict-project-card"
+                    onClick={() => project && onSelectProject(project)}
+                  >
+                    <div className="project-card-header">
+                      <span className="project-title">
+                        {project?.bookTitle || items[0].projectTitle || '未知项目'}
+                      </span>
+                      {project && (
+                        <span className={`status-badge status-${project.status}`}>
+                          {STATUS_LABELS[project.status]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="project-card-body">
+                      <div className="project-hours-info">
+                        <span className="label">该日占用：</span>
+                        <span className="value">{totalHours} 小时</span>
+                      </div>
+                      <div className="project-steps">
+                        <span className="label">涉及步骤：</span>
+                        <div className="steps-list">
+                          {items.map((item, idx) => (
+                            <span key={idx} className="step-chip">
+                              {item.stepName} ({item.estimatedHours}h)
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="project-card-footer">
+                      <span className="go-to-project">点击跳转调整 →</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="conflict-suggestions">
+            <h4>💡 建议解决方案</h4>
+            <ul className="suggestion-list">
+              <li>调整部分步骤的排期到其他日期</li>
+              <li>将部分工作分配给其他修复人员</li>
+              <li>如果可能，拆分大的步骤为多个小步骤</li>
+              <li>与客户沟通是否可以调整交付时间</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );

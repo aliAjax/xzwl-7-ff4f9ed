@@ -201,6 +201,21 @@ export interface StepWorkEstimate {
   scheduledDate?: string | null;
 }
 
+export interface StaffWorkloadConflict {
+  staffId: string;
+  staffName: string;
+  date: string;
+  scheduledHours: number;
+  maxHours: number;
+  overloadHours: number;
+  relatedProjects: {
+    projectId: string;
+    projectTitle: string;
+    stepName: string;
+    estimatedHours: number;
+  }[];
+}
+
 export interface ScheduleData {
   staff: RestorationStaff[];
   schedules: ScheduleItem[];

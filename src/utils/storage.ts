@@ -14,6 +14,9 @@ import type {
   SavedPurchaseSuggestion,
   SavedView,
   StockInTemplate,
+  StaffWorkloadConflict,
+  ScheduleItem,
+  RestorationStaff,
 } from '../types';
 import { STAGE_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
 
@@ -1353,4 +1356,85 @@ const generateSampleStockInTemplates = (): StockInTemplate[] => {
       updatedAt: now,
     },
   ];
+};
+
+export const detectStaffWorkloadConflicts = (
+  staff: RestorationStaff[],
+  schedules: ScheduleItem[]
+): StaffWorkloadConflict[] => {
+  const conflicts: StaffWorkloadConflict[] = [];
+  const activeSchedules = schedules.filter(s => !s.completed);
+
+  const dateStaffMap = new Map<string, Map<string, ScheduleItem[]>>();
+
+  activeSchedules.forEach(schedule => {
+    if (!schedule.scheduledDate) return;
+    const date = schedule.scheduledDate;
+    if (!dateStaffMap.has(date)) {
+      dateStaffMap.set(date, new Map());
+    }
+    const staffMap = dateStaffMap.get(date)!;
+    if (!staffMap.has(schedule.staffId)) {
+      staffMap.set(schedule.staffId, []);
+    }
+    staffMap.get(schedule.staffId)!.push(schedule);
+  });
+
+  dateStaffMap.forEach((staffMap, date) => {
+    staffMap.forEach((daySchedules, staffId) => {
+      const staffMember = staff.find(s => s.id === staffId);
+      if (!staffMember) return;
+
+      const maxHours = staffMember.dailyWorkHours || 8;
+      const scheduledHours = daySchedules.reduce((sum, s) => sum + s.estimatedHours, 0);
+
+      if (scheduledHours > maxHours) {
+        conflicts.push({
+          staffId,
+          staffName: staffMember.name,
+          date,
+          scheduledHours,
+          maxHours,
+          overloadHours: Math.round((scheduledHours - maxHours) * 10) / 10,
+          relatedProjects: daySchedules.map(s => ({
+            projectId: s.projectId,
+            projectTitle: s.projectTitle || '',
+            stepName: s.stepName || '',
+            estimatedHours: s.estimatedHours,
+          })),
+        });
+      }
+    });
+  });
+
+  return conflicts.sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+};
+
+export const getStaffConflicts = (
+  staffId: string,
+  staff: RestorationStaff[],
+  schedules: ScheduleItem[]
+): StaffWorkloadConflict[] => {
+  return detectStaffWorkloadConflicts(staff, schedules)
+    .filter(c => c.staffId === staffId);
+};
+
+export const getProjectConflicts = (
+  projectId: string,
+  staff: RestorationStaff[],
+  schedules: ScheduleItem[]
+): StaffWorkloadConflict[] => {
+  return detectStaffWorkloadConflicts(staff, schedules)
+    .filter(c => c.relatedProjects.some(p => p.projectId === projectId));
+};
+
+export const getDateConflicts = (
+  date: string,
+  staff: RestorationStaff[],
+  schedules: ScheduleItem[]
+): StaffWorkloadConflict[] => {
+  return detectStaffWorkloadConflicts(staff, schedules)
+    .filter(c => c.date === date);
 };
