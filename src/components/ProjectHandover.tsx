@@ -587,7 +587,10 @@ export default function ProjectHandover({ project, onClose, getStatusBadgeClass 
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className={`modal-overlay handover-print-overlay ${viewMode === 'preview' ? 'handover-print-mode' : ''}`}
+      onClick={onClose}
+    >
       <div 
         className={`modal-content detail-modal large-modal handover-modal ${viewMode === 'preview' ? 'preview-modal' : ''}`}
         onClick={(e) => e.stopPropagation()}

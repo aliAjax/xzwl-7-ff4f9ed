@@ -2221,13 +2221,13 @@ body {
     background: white !important;
   }
 
-  body.printing-handover > :not(.modal-overlay),
-  body.printing-handover-active > :not(.modal-overlay) {
+  body.printing-handover .modal-overlay,
+  body.printing-handover-active .modal-overlay {
     display: none !important;
   }
 
-  body.printing-handover .modal-overlay,
-  body.printing-handover-active .modal-overlay {
+  body.printing-handover .modal-overlay.handover-print-mode,
+  body.printing-handover-active .modal-overlay.handover-print-mode {
     position: static !important;
     background: transparent !important;
     display: block !important;
