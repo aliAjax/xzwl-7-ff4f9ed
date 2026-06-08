@@ -40,6 +40,7 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<StockInTemplate | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [isTemplateFromStockIn, setIsTemplateFromStockIn] = useState(false);
   const [templateForm, setTemplateForm] = useState({
     name: '',
     supplier: '',
@@ -399,29 +400,52 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
 
     const template = stockInTemplates.find(t => t.id === templateId);
     if (template) {
+      if (selectedMaterial && template.unit !== selectedMaterial.unit) {
+        setMessage({
+          type: 'error',
+          text: `模板单位「${template.unit}」与当前材料单位「${selectedMaterial.unit}」不匹配，无法使用此模板`
+        });
+        setSelectedTemplateId('');
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+
       setStockInForm({
         ...stockInForm,
         supplier: template.supplier,
         unitPrice: template.defaultUnitPrice ? template.defaultUnitPrice.toString() : '',
         note: template.note || '',
       });
+
+      setMessage({
+        type: 'success',
+        text: `已应用模板「${template.name}」，单位：${template.unit}`
+      });
+      setTimeout(() => setMessage(null), 2000);
     }
   };
 
-  const openAddTemplateForm = () => {
+  const matchingTemplates = useMemo(() => {
+    if (!selectedMaterial) return [];
+    return stockInTemplates.filter(t => t.unit === selectedMaterial.unit);
+  }, [stockInTemplates, selectedMaterial]);
+
+  const openAddTemplateForm = (fromStockIn = false) => {
     setEditingTemplate(null);
+    setIsTemplateFromStockIn(fromStockIn);
     setTemplateForm({
       name: selectedMaterial?.name || '',
-      supplier: '',
+      supplier: fromStockIn ? stockInForm.supplier : '',
       unit: selectedMaterial?.unit || '',
-      defaultUnitPrice: '',
-      note: '',
+      defaultUnitPrice: fromStockIn ? stockInForm.unitPrice : '',
+      note: fromStockIn ? stockInForm.note : '',
     });
     setShowTemplateForm(true);
   };
 
   const openEditTemplateForm = (template: StockInTemplate) => {
     setEditingTemplate(template);
+    setIsTemplateFromStockIn(false);
     setTemplateForm({
       name: template.name,
       supplier: template.supplier,
@@ -781,23 +805,30 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
                     <h3>材料入库</h3>
                     <button
                       className="btn btn-secondary btn-sm"
-                      onClick={openAddTemplateForm}
+                      onClick={() => openAddTemplateForm(true)}
                     >
                       + 保存为模板
                     </button>
                   </div>
                   <div className="form-group">
-                    <label>选择快速入库模板</label>
+                    <label>选择快速入库模板 (当前单位：{selectedMaterial.unit})</label>
                     <select
                       value={selectedTemplateId}
                       onChange={(e) => handleTemplateSelect(e.target.value)}
                     >
                       <option value="">-- 不使用模板 --</option>
-                      {stockInTemplates.map(template => (
-                        <option key={template.id} value={template.id}>
-                          {template.name} ({template.supplier})
+                      {matchingTemplates.length > 0 ? (
+                        matchingTemplates.map(template => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} ({template.unit}) - {template.supplier}
+                            {template.defaultUnitPrice ? ` - ¥${template.defaultUnitPrice.toFixed(2)}` : ''}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>
+                          暂无「{selectedMaterial.unit}」单位的模板，可点击右上角「保存为模板」创建
                         </option>
-                      ))}
+                      )}
                     </select>
                   </div>
                   <div className="form-row">
@@ -1037,7 +1068,7 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
             <div className="modal-header">
               <h2>快速入库模板管理</h2>
               <div className="header-actions">
-                <button className="btn btn-primary" onClick={openAddTemplateForm}>
+                <button className="btn btn-primary" onClick={() => openAddTemplateForm(false)}>
                   + 新建模板
                 </button>
                 <button className="btn btn-close" onClick={() => setShowTemplateManager(false)}>×</button>
@@ -1131,7 +1162,17 @@ export default function MaterialInventory({ projects, onSelectProject }: Materia
                     value={templateForm.unit}
                     onChange={(e) => setTemplateForm({ ...templateForm, unit: e.target.value })}
                     placeholder="如：张、克、毫升"
+                    readOnly={isTemplateFromStockIn || !!editingTemplate}
+                    style={{
+                      backgroundColor: isTemplateFromStockIn || editingTemplate ? '#f3f4f6' : undefined,
+                      cursor: isTemplateFromStockIn || editingTemplate ? 'not-allowed' : undefined,
+                    }}
                   />
+                  {(isTemplateFromStockIn || editingTemplate) && (
+                    <span className="form-hint">
+                      {isTemplateFromStockIn ? '单位与当前材料一致，不可修改' : '编辑模板时不可修改单位'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="form-row">
