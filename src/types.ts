@@ -216,6 +216,70 @@ export interface StaffWorkloadConflict {
   }[];
 }
 
+export type ChangeType = 'moved_date' | 'changed_staff' | 'both' | 'unchanged';
+
+export interface ScheduleChange {
+  scheduleItemId: string;
+  projectId: string;
+  projectTitle: string;
+  stepName: string;
+  changeType: ChangeType;
+  oldDate: string;
+  newDate: string;
+  oldStaffId: string;
+  oldStaffName: string;
+  newStaffId: string;
+  newStaffName: string;
+  estimatedHours: number;
+}
+
+export type UnresolvedConflictReason =
+  | 'insufficient_staff'
+  | 'delivery_too_tight'
+  | 'skill_mismatch'
+  | 'step_order_violation'
+  | 'partial_resolution';
+
+export interface UnresolvedConflict {
+  type: 'overload' | 'overdue';
+  severity: 'high' | 'medium' | 'low';
+  reason: UnresolvedConflictReason;
+  reasonDescription: string;
+  staffId?: string;
+  staffName?: string;
+  date?: string;
+  projectId?: string;
+  projectTitle?: string;
+  stepName?: string;
+  scheduledHours?: number;
+  maxHours?: number;
+  overloadHours?: number;
+  suggestedActions?: string[];
+}
+
+export interface AutoRescheduleResult {
+  success: boolean;
+  originalSchedules: ScheduleItem[];
+  proposedSchedules: ScheduleItem[];
+  changes: ScheduleChange[];
+  unchangedCount: number;
+  modifiedCount: number;
+  totalConflictCountBefore: number;
+  totalConflictCountAfter: number;
+  unresolvedConflicts: UnresolvedConflict[];
+  canApply: boolean;
+  generatedAt: string;
+  summary: {
+    totalTasks: number;
+    completedTasks: number;
+    rescheduledTasks: number;
+    conflictsResolved: number;
+    conflictsRemaining: number;
+    earliestDate: string;
+    latestDate: string;
+  };
+}
+
 export interface ScheduleData {
   staff: RestorationStaff[];
   schedules: ScheduleItem[];

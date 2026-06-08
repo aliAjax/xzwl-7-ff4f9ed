@@ -17,6 +17,11 @@ import type {
   StaffWorkloadConflict,
   ScheduleItem,
   RestorationStaff,
+  AutoRescheduleResult,
+  ScheduleChange,
+  UnresolvedConflict,
+  UnresolvedConflictReason,
+  ChangeType,
 } from '../types';
 import { STAGE_LABELS, PAPER_CONDITION_LABELS, DAMAGE_SEVERITY_LABELS, POLLUTION_TYPE_LABELS, BINDING_CONDITION_LABELS } from '../types';
 
@@ -1437,4 +1442,400 @@ export const getDateConflicts = (
 ): StaffWorkloadConflict[] => {
   return detectStaffWorkloadConflicts(staff, schedules)
     .filter(c => c.date === date);
+};
+
+const hasMatchingSkill = (staffMember: RestorationStaff, stepName: string): boolean => {
+  const skills = staffMember.skills || [];
+  if (skills.length === 0) return true;
+  const stepSkillMap: Record<string, string[]> = {
+    '检查评估': ['检查评估', '评估'],
+    '清理除尘': ['清理除尘', '清洁'],
+    '脱酸处理': ['脱酸处理', '化学处理'],
+    '补洞修复': ['补洞修复', '修复'],
+    '托裱加固': ['托裱加固', '托裱'],
+    '晾干定型': ['晾干定型', '干燥'],
+    '装订整理': ['装订整理', '装订'],
+    '消毒灭菌': ['消毒灭菌', '消毒'],
+    '去霉处理': ['去霉处理', '清洁'],
+    '清洗脱酸': ['清洗脱酸', '化学处理'],
+    '吸水处理': ['吸水处理', '干燥'],
+    '压平整理': ['压平整理', '整理'],
+    '清理灰烬': ['清理除尘', '清洁'],
+    '脆弱页处理': ['补洞修复', '修复'],
+    '衬纸补强': ['托裱加固', '托裱'],
+    '拼接对齐': ['补缀修复', '修复'],
+    '补缀修复': ['补缀修复', '修复'],
+    '晾干压平': ['晾干定型', '干燥'],
+    '书页整理': ['书页整理', '整理'],
+    '装订定位': ['装订整理', '装订'],
+    '重新装订': ['装订整理', '装订'],
+    '拆解检查': ['拆解检查', '检查评估'],
+    '封面修复': ['封面修复', '修复'],
+    '软化处理': ['软化处理', '化学处理'],
+    '配纸选料': ['配纸选料', '修复'],
+    '描样补写': ['描样补写', '修复'],
+    '做旧处理': ['做旧处理', '修复'],
+  };
+  const requiredSkills = stepSkillMap[stepName] || [stepName];
+  return requiredSkills.some(rs => skills.some(s => s.includes(rs) || rs.includes(s)));
+};
+
+const getStepIndex = (project: RestorationProject, stepName: string): number => {
+  return project.restorationSteps.findIndex(s => s.name === stepName);
+};
+
+const getEarliestPossibleDate = (
+  project: RestorationProject,
+  stepIndex: number,
+  today: Date,
+  completedSteps: Set<string>
+): Date => {
+  let earliestDate = new Date(today);
+  for (let i = 0; i < stepIndex; i++) {
+    const step = project.restorationSteps[i];
+    if (step.completed) {
+      if (step.date) {
+        const stepDate = new Date(step.date);
+        stepDate.setDate(stepDate.getDate() + 1);
+        if (stepDate > earliestDate) {
+          earliestDate = new Date(stepDate);
+        }
+      }
+      completedSteps.add(step.name);
+    }
+  }
+  return earliestDate;
+};
+
+const getLatestPossibleDate = (
+  project: RestorationProject,
+  stepIndex: number,
+  totalSteps: number
+): Date => {
+  const deliveryDate = new Date(project.deliveryDate);
+  const remainingSteps = totalSteps - stepIndex - 1;
+  const latestDate = new Date(deliveryDate);
+  latestDate.setDate(latestDate.getDate() - remainingSteps);
+  return latestDate;
+};
+
+const buildDateStaffLoadMap = (schedules: ScheduleItem[]): Map<string, Map<string, number>> => {
+  const loadMap = new Map<string, Map<string, number>>();
+  schedules.forEach(item => {
+    if (!item.completed && item.scheduledDate) {
+      if (!loadMap.has(item.scheduledDate)) {
+        loadMap.set(item.scheduledDate, new Map());
+      }
+      const staffMap = loadMap.get(item.scheduledDate)!;
+      staffMap.set(item.staffId, (staffMap.get(item.staffId) || 0) + item.estimatedHours);
+    }
+  });
+  return loadMap;
+};
+
+const getChangeType = (oldItem: ScheduleItem, newItem: ScheduleItem): ChangeType => {
+  const dateChanged = oldItem.scheduledDate !== newItem.scheduledDate;
+  const staffChanged = oldItem.staffId !== newItem.staffId;
+  if (dateChanged && staffChanged) return 'both';
+  if (dateChanged) return 'moved_date';
+  if (staffChanged) return 'changed_staff';
+  return 'unchanged';
+};
+
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+export const performAutoReschedule = (
+  projects: RestorationProject[],
+  staff: RestorationStaff[],
+  schedules: ScheduleItem[]
+): AutoRescheduleResult => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatDate(today);
+
+  const originalSchedules = [...schedules];
+  const completedSchedules = schedules.filter(s => s.completed);
+  const incompleteSchedules = schedules.filter(s => !s.completed);
+
+  const totalConflictCountBefore = detectStaffWorkloadConflicts(staff, schedules).length;
+
+  const undeliveredProjects = projects.filter(p => p.status !== 'delivered');
+
+  const projectStepInfo = new Map<string, { earliestDate: Date; latestDate: Date; stepIndex: number }[]>();
+  const completedSteps = new Set<string>();
+
+  undeliveredProjects.forEach(project => {
+    const stepInfos: { earliestDate: Date; latestDate: Date; stepIndex: number }[] = [];
+    project.restorationSteps.forEach((step, idx) => {
+      if (!step.completed) {
+        const earliestDate = getEarliestPossibleDate(project, idx, today, completedSteps);
+        const latestDate = getLatestPossibleDate(project, idx, project.restorationSteps.length);
+        stepInfos.push({ earliestDate, latestDate, stepIndex: idx });
+      }
+    });
+    projectStepInfo.set(project.id, stepInfos);
+  });
+
+  const proposedSchedules = [...completedSchedules];
+  const tasksToReschedule: Array<{
+    original: ScheduleItem;
+    project: RestorationProject;
+    stepIndex: number;
+    earliestDate: Date;
+    latestDate: Date;
+  }> = [];
+
+  incompleteSchedules.forEach(item => {
+    const project = undeliveredProjects.find(p => p.id === item.projectId);
+    if (!project) {
+      proposedSchedules.push(item);
+      return;
+    }
+    const stepIndex = getStepIndex(project, item.stepName || '');
+    if (stepIndex === -1) {
+      proposedSchedules.push(item);
+      return;
+    }
+    const stepInfos = projectStepInfo.get(project.id);
+    const stepInfo = stepInfos?.find(s => s.stepIndex === stepIndex);
+    if (!stepInfo) {
+      proposedSchedules.push(item);
+      return;
+    }
+    tasksToReschedule.push({
+      original: item,
+      project,
+      stepIndex,
+      earliestDate: stepInfo.earliestDate,
+      latestDate: stepInfo.latestDate,
+    });
+  });
+
+  tasksToReschedule.sort((a, b) => {
+    const aPriority = a.project.priority === 'high' ? 0 : a.project.priority === 'medium' ? 1 : 2;
+    const bPriority = b.project.priority === 'high' ? 0 : b.project.priority === 'medium' ? 1 : 2;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return a.stepIndex - b.stepIndex;
+  });
+
+  const dateStaffLoad = buildDateStaffLoadMap(completedSchedules);
+  const unresolvedConflicts: UnresolvedConflict[] = [];
+  const changes: ScheduleChange[] = [];
+
+  for (const task of tasksToReschedule) {
+    const { original, project, earliestDate, latestDate } = task;
+    const stepName = original.stepName || '';
+    const hours = original.estimatedHours;
+    const projectTitle = project.bookTitle;
+
+    let bestDate: string | null = null;
+    let bestStaff: RestorationStaff | null = null;
+    let minScore = Infinity;
+
+    const currentDate = new Date(earliestDate);
+    const hardDeadline = new Date(Math.min(latestDate.getTime(), new Date(project.deliveryDate).getTime()));
+
+    while (currentDate <= hardDeadline) {
+      const dateStr = formatDate(currentDate);
+
+      if (!dateStaffLoad.has(dateStr)) {
+        dateStaffLoad.set(dateStr, new Map());
+      }
+      const staffLoad = dateStaffLoad.get(dateStr)!;
+
+      for (const staffMember of staff) {
+        if (!hasMatchingSkill(staffMember, stepName)) {
+          continue;
+        }
+
+        const currentLoad = staffLoad.get(staffMember.id) || 0;
+        const maxHours = staffMember.dailyWorkHours || 8;
+        const newLoad = currentLoad + hours;
+
+        const daysDiff = Math.abs(new Date(original.scheduledDate!).getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
+        const staffChangePenalty = staffMember.id === original.staffId ? 0 : 5;
+        const dateChangePenalty = daysDiff * 2;
+
+        if (newLoad <= maxHours) {
+          const score = currentLoad + staffChangePenalty + dateChangePenalty;
+          if (score < minScore) {
+            minScore = score;
+            bestDate = dateStr;
+            bestStaff = staffMember;
+          }
+        } else {
+          const overload = newLoad - maxHours;
+          const overloadPenalty = overload * 20;
+          const score = currentLoad + overloadPenalty + staffChangePenalty + dateChangePenalty;
+          if (score < minScore && overload <= maxHours * 0.3) {
+            minScore = score;
+            bestDate = dateStr;
+            bestStaff = staffMember;
+          }
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    if (!bestStaff || !bestDate) {
+      for (const staffMember of staff) {
+        if (!hasMatchingSkill(staffMember, stepName)) continue;
+
+        const currentDate2 = new Date(earliestDate);
+        while (currentDate2 <= hardDeadline) {
+          const dateStr = formatDate(currentDate2);
+          if (!dateStaffLoad.has(dateStr)) {
+            dateStaffLoad.set(dateStr, new Map());
+          }
+          const staffLoad = dateStaffLoad.get(dateStr)!;
+          const currentLoad = staffLoad.get(staffMember.id) || 0;
+          const newLoad = currentLoad + hours;
+          const maxHours = staffMember.dailyWorkHours || 8;
+
+          if (newLoad <= maxHours * 1.5) {
+            bestDate = dateStr;
+            bestStaff = staffMember;
+            break;
+          }
+          currentDate2.setDate(currentDate2.getDate() + 1);
+        }
+        if (bestStaff && bestDate) break;
+      }
+    }
+
+    if (bestStaff && bestDate) {
+      const newItem: ScheduleItem = {
+        ...original,
+        scheduledDate: bestDate,
+        staffId: bestStaff.id,
+        staffName: bestStaff.name,
+      };
+
+      const changeType = getChangeType(original, newItem);
+      if (changeType !== 'unchanged') {
+        changes.push({
+          scheduleItemId: original.id,
+          projectId: project.id,
+          projectTitle,
+          stepName,
+          changeType,
+          oldDate: original.scheduledDate || '',
+          newDate: bestDate,
+          oldStaffId: original.staffId,
+          oldStaffName: original.staffName || '',
+          newStaffId: bestStaff.id,
+          newStaffName: bestStaff.name,
+          estimatedHours: hours,
+        });
+      }
+
+      proposedSchedules.push(newItem);
+
+      if (!dateStaffLoad.has(bestDate)) {
+        dateStaffLoad.set(bestDate, new Map());
+      }
+      const staffLoad = dateStaffLoad.get(bestDate)!;
+      staffLoad.set(bestStaff.id, (staffLoad.get(bestStaff.id) || 0) + hours);
+    } else {
+      proposedSchedules.push(original);
+
+      const deliveryDate = new Date(project.deliveryDate);
+      const daysUntilDelivery = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      let reason: UnresolvedConflictReason = 'insufficient_staff';
+      let reasonDescription = '';
+      let suggestedActions: string[] = [];
+
+      if (daysUntilDelivery < 0) {
+        reason = 'delivery_too_tight';
+        reasonDescription = `项目《${projectTitle}》已逾期，无法在当前人员配置下安排「${stepName}」步骤`;
+        suggestedActions = ['增加修复人员', '与客户沟通调整交付日期', '简化修复流程'];
+      } else if (daysUntilDelivery <= 3 && project.restorationSteps.filter(s => !s.completed).length > daysUntilDelivery) {
+        reason = 'delivery_too_tight';
+        reasonDescription = `项目《${projectTitle}》交付时间过紧（${daysUntilDelivery}天），步骤过多，无法完全分配`;
+        suggestedActions = ['增加修复人员', '并行处理多个步骤', '与客户沟通调整交付日期'];
+      } else if (staff.filter(s => hasMatchingSkill(s, stepName)).length === 0) {
+        reason = 'skill_mismatch';
+        reasonDescription = `没有擅长「${stepName}」技能的修复人员，无法安排该步骤`;
+        suggestedActions = ['培训现有员工掌握该技能', '招聘具备该技能的修复人员', '外包该步骤'];
+      } else {
+        reason = 'insufficient_staff';
+        reasonDescription = `修复人员不足，「${stepName}」（${hours}小时）无法在交付日期前合理安排`;
+        suggestedActions = ['增加修复人员', '调整其他项目优先级', '延长工作时间'];
+      }
+
+      unresolvedConflicts.push({
+        type: 'overload',
+        severity: 'high',
+        reason,
+        reasonDescription,
+        projectId: project.id,
+        projectTitle,
+        stepName,
+        scheduledHours: hours,
+        suggestedActions,
+      });
+    }
+  }
+
+  const conflictsAfter = detectStaffWorkloadConflicts(staff, proposedSchedules);
+  const totalConflictCountAfter = conflictsAfter.length;
+
+  conflictsAfter.forEach(conflict => {
+    const alreadyRecorded = unresolvedConflicts.some(
+      c => c.staffId === conflict.staffId && c.date === conflict.date
+    );
+    if (!alreadyRecorded) {
+      unresolvedConflicts.push({
+        type: 'overload',
+        severity: conflict.overloadHours > 4 ? 'high' : conflict.overloadHours > 2 ? 'medium' : 'low',
+        reason: 'partial_resolution',
+        reasonDescription: `${conflict.staffName} 在 ${conflict.date} 仍有 ${conflict.overloadHours} 小时负载超出上限，已尽量优化但仍无法完全解决`,
+        staffId: conflict.staffId,
+        staffName: conflict.staffName,
+        date: conflict.date,
+        scheduledHours: conflict.scheduledHours,
+        maxHours: conflict.maxHours,
+        overloadHours: conflict.overloadHours,
+        suggestedActions: [
+          '将该日部分工作移至其他日期',
+          '分配给其他有空闲的修复人员',
+          '考虑增加临时人员',
+        ],
+      });
+    }
+  });
+
+  const allDates = proposedSchedules
+    .filter(s => s.scheduledDate)
+    .map(s => new Date(s.scheduledDate!).getTime());
+
+  const modifiedCount = changes.length;
+  const unchangedCount = incompleteSchedules.length - modifiedCount;
+
+  return {
+    success: true,
+    originalSchedules,
+    proposedSchedules,
+    changes,
+    unchangedCount,
+    modifiedCount,
+    totalConflictCountBefore,
+    totalConflictCountAfter,
+    unresolvedConflicts,
+    canApply: true,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      totalTasks: schedules.length,
+      completedTasks: completedSchedules.length,
+      rescheduledTasks: modifiedCount,
+      conflictsResolved: Math.max(0, totalConflictCountBefore - totalConflictCountAfter),
+      conflictsRemaining: totalConflictCountAfter + unresolvedConflicts.filter(c => c.type === 'overdue').length,
+      earliestDate: allDates.length > 0 ? formatDate(new Date(Math.min(...allDates))) : todayStr,
+      latestDate: allDates.length > 0 ? formatDate(new Date(Math.max(...allDates))) : todayStr,
+    },
+  };
 };

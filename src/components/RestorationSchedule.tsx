@@ -5,6 +5,7 @@ import type {
   ScheduleItem,
   ProjectSchedule,
   StepWorkEstimate,
+  AutoRescheduleResult,
 } from '../types';
 import {
   getScheduleData,
@@ -16,9 +17,11 @@ import {
   getStaffConflicts,
   getProjectConflicts,
   getDateConflicts,
+  performAutoReschedule,
 } from '../utils/storage';
 import { STATUS_LABELS } from '../types';
 import type { StaffWorkloadConflict } from '../types';
+import AutoRescheduleModal from './AutoRescheduleModal';
 
 type ScheduleTab = 'staff' | 'projects' | 'calendar';
 
@@ -39,6 +42,9 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [, setWorkloadConflicts] = useState<StaffWorkloadConflict[]>([]);
   const [showConflictDetail, setShowConflictDetail] = useState<StaffWorkloadConflict | null>(null);
+  const [autoRescheduleResult, setAutoRescheduleResult] = useState<AutoRescheduleResult | null>(null);
+  const [showAutoRescheduleModal, setShowAutoRescheduleModal] = useState(false);
+  const [isAutoRescheduling, setIsAutoRescheduling] = useState(false);
 
   useEffect(() => {
     const data = getScheduleData();
@@ -495,6 +501,79 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     setProjectSchedules(updatedProjectSchedules);
   };
 
+  const handleAutoReschedule = () => {
+    if (schedules.filter(s => !s.completed).length === 0) {
+      setMessage({ type: 'error', text: '没有待处理的排期项需要重排' });
+      return;
+    }
+    if (staff.length === 0) {
+      setMessage({ type: 'error', text: '请先添加修复人员后再进行自动重排' });
+      return;
+    }
+
+    setIsAutoRescheduling(true);
+    setTimeout(() => {
+      try {
+        const result = performAutoReschedule(projects, staff, schedules);
+        setAutoRescheduleResult(result);
+        setShowAutoRescheduleModal(true);
+      } catch (error) {
+        console.error('Auto reschedule error:', error);
+        setMessage({ type: 'error', text: '自动重排失败，请稍后重试' });
+      } finally {
+        setIsAutoRescheduling(false);
+      }
+    }, 300);
+  };
+
+  const handleConfirmAutoReschedule = (result: AutoRescheduleResult) => {
+    const now = new Date().toISOString().split('T')[0];
+
+    const updatedProjectSchedules = projectSchedules.map(ps => {
+      const project = projects.find(p => p.id === ps.projectId);
+      if (!project) return ps;
+
+      const updatedEstimates = [...(ps.stepEstimates || [])];
+      project.restorationSteps.forEach((step, idx) => {
+        if (step.completed) return;
+        const newSchedule = result.proposedSchedules.find(
+          s => s.projectId === project.id && s.stepName === step.name && !s.completed
+        );
+        if (newSchedule) {
+          updatedEstimates[idx] = {
+            ...updatedEstimates[idx],
+            scheduledDate: newSchedule.scheduledDate || null,
+            assignedStaffId: newSchedule.staffId || null,
+          };
+        }
+      });
+
+      return { ...ps, stepEstimates: updatedEstimates, updatedAt: now };
+    });
+
+    setSchedules(result.proposedSchedules);
+    setProjectSchedules(updatedProjectSchedules);
+    setShowAutoRescheduleModal(false);
+    setAutoRescheduleResult(null);
+
+    const saveResult = saveScheduleData({
+      staff,
+      schedules: result.proposedSchedules,
+      projectSchedules: updatedProjectSchedules,
+    });
+
+    if (saveResult.success) {
+      const resolved = result.summary.conflictsResolved;
+      const remaining = result.summary.conflictsRemaining;
+      setMessage({
+        type: remaining > 0 ? 'success' : 'success',
+        text: `重排成功！已解决 ${resolved} 个冲突${remaining > 0 ? `，仍有 ${remaining} 个问题需关注` : ''}`,
+      });
+    } else {
+      setMessage({ type: 'error', text: saveResult.error || '保存失败' });
+    }
+  };
+
   const generateSchedules = (project: RestorationProject) => {
     const projectSchedule = getProjectSchedule(project.id);
     if (!projectSchedule) {
@@ -790,6 +869,20 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
               </div>
             )}
           </div>
+        </div>
+
+        <div className="schedule-header-actions">
+          <button
+            className="btn btn-primary auto-reschedule-btn"
+            onClick={handleAutoReschedule}
+            disabled={isAutoRescheduling || schedules.filter(s => !s.completed).length === 0}
+          >
+            {isAutoRescheduling ? (
+              <span className="loading-spinner">计算中...</span>
+            ) : (
+              <>🔄 智能自动重排</>
+            )}
+          </button>
         </div>
 
         <div className="schedule-tabs">
@@ -1310,6 +1403,17 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
             setShowConflictDetail(null);
             onSelectProject(project);
           }}
+        />
+      )}
+
+      {showAutoRescheduleModal && autoRescheduleResult && (
+        <AutoRescheduleModal
+          result={autoRescheduleResult}
+          onClose={() => {
+            setShowAutoRescheduleModal(false);
+            setAutoRescheduleResult(null);
+          }}
+          onConfirm={handleConfirmAutoReschedule}
         />
       )}
     </div>
