@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { RestorationProject, ProjectStatus, Priority, RestorationStep } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS } from '../types';
 
@@ -7,7 +8,7 @@ interface ProjectDetailProps {
   onEdit: (project: RestorationProject) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: ProjectStatus) => void;
-  onStepToggle: (projectId: string, stepId: string) => void;
+  onStepToggle: (projectId: string, stepId: string, notes?: string) => void;
   onPriorityChange: (id: string, priority: Priority) => void;
   onStartAssessment: () => void;
   onOpenHandover: () => void;
@@ -28,6 +29,12 @@ export default function ProjectDetail({
   onOpenReport,
   getStatusBadgeClass,
 }: ProjectDetailProps) {
+  const [stepNoteModal, setStepNoteModal] = useState<{
+    show: boolean;
+    stepId: string;
+    stepName: string;
+    notes: string;
+  } | null>(null);
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('zh-CN', {
       year: 'numeric',
@@ -70,6 +77,30 @@ export default function ProjectDetail({
   };
 
   const deliveryStatus = getDeliveryStatus();
+
+  const handleStepCheckboxChange = (step: RestorationStep) => {
+    if (!step.completed) {
+      setStepNoteModal({
+        show: true,
+        stepId: step.id,
+        stepName: step.name,
+        notes: step.notes || '',
+      });
+    } else {
+      onStepToggle(project.id, step.id);
+    }
+  };
+
+  const handleStepNoteConfirm = () => {
+    if (stepNoteModal) {
+      onStepToggle(project.id, stepNoteModal.stepId, stepNoteModal.notes.trim() || undefined);
+      setStepNoteModal(null);
+    }
+  };
+
+  const handleStepNoteCancel = () => {
+    setStepNoteModal(null);
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -250,7 +281,7 @@ export default function ProjectDetail({
                     <input
                       type="checkbox"
                       checked={step.completed}
-                      onChange={() => onStepToggle(project.id, step.id)}
+                      onChange={() => handleStepCheckboxChange(step)}
                     />
                     <span className="checkmark">✓</span>
                   </label>
@@ -261,6 +292,12 @@ export default function ProjectDetail({
                     </div>
                     {step.description && (
                       <p className="step-description">{step.description}</p>
+                    )}
+                    {step.notes && (
+                      <div className="step-notes">
+                        <span className="step-notes-label">处理说明：</span>
+                        <span className="step-notes-text">{step.notes}</span>
+                      </div>
                     )}
                     <div className="step-meta">
                       <span className="step-duration">预计 {step.estimatedDuration} 天</span>
@@ -305,6 +342,34 @@ export default function ProjectDetail({
           </div>
         </div>
       </div>
+
+      {stepNoteModal && stepNoteModal.show && (
+        <div className="modal-overlay" onClick={handleStepNoteCancel}>
+          <div className="modal-content step-note-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>「{stepNoteModal.stepName}」步骤完成说明</h3>
+              <button className="btn btn-close" onClick={handleStepNoteCancel}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>本次处理说明（可选）</label>
+                <textarea
+                  value={stepNoteModal.notes}
+                  onChange={(e) => setStepNoteModal({ ...stepNoteModal, notes: e.target.value })}
+                  placeholder="请填写本次修复处理的详细说明，如使用的特殊方法、遇到的问题、处理结果等..."
+                  rows={4}
+                  autoFocus
+                />
+                <p className="form-hint">留空也可以完成步骤，备注将显示在项目详情、修复报告和交接单中。</p>
+              </div>
+              <div className="form-actions-inline">
+                <button className="btn btn-secondary" onClick={handleStepNoteCancel}>取消</button>
+                <button className="btn btn-primary" onClick={handleStepNoteConfirm}>✓ 确认完成</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

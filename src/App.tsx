@@ -148,13 +148,18 @@ export default function App() {
     }
   };
 
-  const handleStepToggle = (projectId: string, stepId: string) => {
+  const handleStepToggle = (projectId: string, stepId: string, notes?: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
     const updatedSteps = project.restorationSteps.map(step =>
       step.id === stepId
-        ? { ...step, completed: !step.completed, completedAt: !step.completed ? new Date().toISOString().split('T')[0] : undefined }
+        ? { 
+            ...step, 
+            completed: !step.completed, 
+            completedAt: !step.completed ? new Date().toISOString().split('T')[0] : undefined,
+            notes: !step.completed ? (notes || step.notes) : step.notes
+          }
         : step
     );
 

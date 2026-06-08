@@ -1102,6 +1102,25 @@ body {
   margin-bottom: 4px;
 }
 
+.step-notes {
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+}
+
+.step-notes-label {
+  font-weight: 600;
+  color: #92400e;
+  margin-right: 4px;
+}
+
+.step-notes-text {
+  color: #78350f;
+}
+
 .step-meta {
   display: flex;
   gap: 16px;
@@ -1209,6 +1228,16 @@ body {
 .error-text {
   font-size: 12px;
   color: #ef4444;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.step-note-modal {
+  max-width: 500px;
 }
 
 .steps-editor {
