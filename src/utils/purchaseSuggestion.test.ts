@@ -6,13 +6,23 @@ import {
   addDays,
   formatDate,
 } from './purchaseSuggestion';
-import { getMaterialStocks, getScheduleData } from './storage';
 import type {
   RestorationProject,
   MaterialStock,
   ScheduleData,
   PurchaseStatus,
 } from '../types';
+
+vi.mock('./inventoryStorage', () => ({
+  getMaterialStocks: vi.fn(),
+}));
+
+vi.mock('./scheduleStorage', () => ({
+  getScheduleData: vi.fn(),
+}));
+
+import { getMaterialStocks } from './inventoryStorage';
+import { getScheduleData } from './scheduleStorage';
 
 const mockGetMaterialStocks = vi.mocked(getMaterialStocks);
 const mockGetScheduleData = vi.mocked(getScheduleData);

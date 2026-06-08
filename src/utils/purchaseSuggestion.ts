@@ -6,7 +6,9 @@ import type {
   PurchaseStatus,
   ScheduleData,
 } from '../types';
-import { getScheduleData, getMaterialStocks, generateId } from './storage';
+import { getScheduleData } from './scheduleStorage';
+import { getMaterialStocks } from './inventoryStorage';
+import { generateId } from './idGenerator';
 
 const DEFAULT_CALCULATION_PERIOD_DAYS = 30;
 const DEFAULT_RECENT_CONSUMPTION_DAYS = 60;
