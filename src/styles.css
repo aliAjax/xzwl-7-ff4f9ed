@@ -2738,6 +2738,163 @@ body {
   color: #374151;
 }
 
+.images-by-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.image-stage-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.image-stage-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.image-thumbnail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.image-thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.image-thumbnail {
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  font-size: 24px;
+}
+
+.image-thumbnail-caption {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.image-thumbnail-date {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.print-images-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.print-image-stage {
+  page-break-inside: avoid;
+}
+
+.print-image-stage-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin: 0 0 12px 0;
+  padding-left: 6px;
+  border-left: 3px solid #60a5fa;
+}
+
+.print-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.print-image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  page-break-inside: avoid;
+}
+
+.print-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f9fafb;
+}
+
+.print-image-placeholder {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  gap: 4px;
+}
+
+.print-image-placeholder-text {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.print-image-filename {
+  font-size: 10px;
+  color: #9ca3af;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.print-image-caption {
+  font-size: 11px;
+  color: #4b5563;
+  text-align: center;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.print-image-date {
+  color: #9ca3af;
+  font-size: 10px;
+}
+
 @media print {
   body.printing-report,
   body.printing-report-active {
@@ -2968,6 +3125,106 @@ body {
   body.printing-report-active * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  body.printing-report .print-images-container,
+  body.printing-report-active .print-images-container {
+    margin-top: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+
+  body.printing-report .print-image-stage,
+  body.printing-report-active .print-image-stage {
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-report .print-image-stage-title,
+  body.printing-report-active .print-image-stage-title {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #1e3a5f !important;
+    margin: 0 0 10px 0 !important;
+    padding-left: 6px !important;
+    border-left: 3px solid #60a5fa !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-report .print-image-grid,
+  body.printing-report-active .print-image-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  body.printing-report .print-image-item,
+  body.printing-report-active .print-image-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-report .print-image,
+  body.printing-report-active .print-image {
+    width: 100% !important;
+    height: 110px !important;
+    object-fit: cover !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 3px !important;
+    background: #f9fafb !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-report .print-image-placeholder,
+  body.printing-report-active .print-image-placeholder {
+    width: 100% !important;
+    height: 110px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #f3f4f6 !important;
+    border: 1px dashed #d1d5db !important;
+    border-radius: 3px !important;
+    gap: 3px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-report .print-image-placeholder-text,
+  body.printing-report-active .print-image-placeholder-text {
+    font-size: 11px !important;
+    color: #6b7280 !important;
+  }
+
+  body.printing-report .print-image-filename,
+  body.printing-report-active .print-image-filename {
+    font-size: 9px !important;
+    color: #9ca3af !important;
+    max-width: 90% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.printing-report .print-image-caption,
+  body.printing-report-active .print-image-caption {
+    font-size: 10px !important;
+    color: #4b5563 !important;
+    text-align: center !important;
+    line-height: 1.3 !important;
+    max-width: 100% !important;
+  }
+
+  body.printing-report .print-image-date,
+  body.printing-report-active .print-image-date {
+    color: #9ca3af !important;
+    font-size: 9px !important;
   }
 
   @page {

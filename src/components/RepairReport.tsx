@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { RestorationProject, RepairReport, ProjectStatus } from '../types';
-import { STATUS_LABELS } from '../types';
+import type { RestorationProject, RepairReport, ProjectStatus, ImageRecord, RestorationStage } from '../types';
+import { STATUS_LABELS, STAGE_LABELS, STAGE_ORDER } from '../types';
 import {
   getRepairReportsByProjectId,
   generateRepairReportFromProject,
@@ -64,6 +64,21 @@ export default function RepairReport({ project, onClose, getStatusBadgeClass }: 
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const getImageSrc = (image: ImageRecord): string => {
+    return image.dataUrl || image.imageData || image.thumbnail || '';
+  };
+
+  const getImagesByStage = (images: ImageRecord[]): Map<RestorationStage, ImageRecord[]> => {
+    const byStage = new Map<RestorationStage, ImageRecord[]>();
+    STAGE_ORDER.forEach(stage => byStage.set(stage, []));
+    images.forEach(img => {
+      const stage = img.stage as RestorationStage;
+      const existing = byStage.get(stage) || [];
+      byStage.set(stage, [...existing, img]);
+    });
+    return byStage;
   };
 
   const startCreate = () => {
@@ -384,22 +399,39 @@ export default function RepairReport({ project, onClose, getStatusBadgeClass }: 
         <div className="auto-filled-section">
           <h4>修复前中后影像记录</h4>
           {project.imageRecords && project.imageRecords.length > 0 ? (
-            <div className="image-summary-grid">
-              {(() => {
-                const byStage = new Map<string, { count: number; images: typeof project.imageRecords }>();
-                project.imageRecords?.forEach(img => {
-                  const existing = byStage.get(img.stage) || { count: 0, images: [] };
-                  byStage.set(img.stage, { count: existing.count + 1, images: [...existing.images, img] });
-                });
-                return Array.from(byStage.entries()).map(([stage, data]) => (
-                  <div key={stage} className="image-summary-item">
-                    <span className="image-stage">
-                      {stage === 'before' ? '修复前' : stage === 'during' ? '修复中' : '修复后'}
-                    </span>
-                    <span className="image-count">{data.count} 张</span>
+            <div className="images-by-stage">
+              {Array.from(getImagesByStage(project.imageRecords).entries()).map(([stage, images]) => (
+                images.length > 0 && (
+                  <div key={stage} className="image-stage-section">
+                    <h5 className="image-stage-title">
+                      {STAGE_LABELS[stage]}（{images.length} 张）
+                    </h5>
+                    <div className="image-thumbnail-grid">
+                      {images.map((image) => {
+                        const src = getImageSrc(image);
+                        return (
+                          <div key={image.id} className="image-thumbnail-item">
+                            {src ? (
+                              <img
+                                src={src}
+                                alt={image.description || image.fileName}
+                                className="image-thumbnail"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="image-placeholder">📷</div>
+                            )}
+                            {image.description && (
+                              <div className="image-thumbnail-caption">{image.description}</div>
+                            )}
+                            <div className="image-thumbnail-date">{formatDate(image.photoDate)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ));
-              })()}
+                )
+              ))}
             </div>
           ) : (
             <p className="empty-text">暂无影像记录</p>
@@ -561,26 +593,66 @@ export default function RepairReport({ project, onClose, getStatusBadgeClass }: 
           <div className="print-section">
             <h4>六、修复前中后影像记录</h4>
             {previewData.imagesSummary.length > 0 ? (
-              <table className="print-table full-width">
-                <thead>
-                  <tr>
-                    <th>序号</th>
-                    <th>阶段</th>
-                    <th>照片数量</th>
-                    <th>说明</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.imagesSummary.map((item, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{item.stage === 'before' ? '修复前' : item.stage === 'during' ? '修复中' : '修复后'}</td>
-                      <td>{item.count} 张</td>
-                      <td>{item.description}</td>
+              <>
+                <table className="print-table full-width">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th>阶段</th>
+                      <th>照片数量</th>
+                      <th>说明</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {previewData.imagesSummary.map((item, index) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>{item.stage === 'before' ? '修复前' : item.stage === 'during' ? '修复中' : '修复后'}</td>
+                        <td>{item.count} 张</td>
+                        <td>{item.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="print-images-container">
+                  {Array.from(getImagesByStage(previewData.imageRecords).entries()).map(([stage, images]) => (
+                    images.length > 0 && (
+                      <div key={stage} className="print-image-stage">
+                        <h5 className="print-image-stage-title">
+                          {STAGE_LABELS[stage]}
+                        </h5>
+                        <div className="print-image-grid">
+                          {images.map((image, imgIndex) => {
+                            const src = getImageSrc(image);
+                            return (
+                              <div key={image.id} className="print-image-item">
+                                {src ? (
+                                  <img
+                                    src={src}
+                                    alt={image.description || image.fileName}
+                                    className="print-image"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="print-image-placeholder">
+                                    <span className="print-image-placeholder-text">无图像数据</span>
+                                    <span className="print-image-filename">{image.fileName}</span>
+                                  </div>
+                                )}
+                                <div className="print-image-caption">
+                                  {imgIndex + 1}. {image.description || image.fileName}
+                                  <span className="print-image-date">（{formatDate(image.photoDate)}）</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </>
             ) : (
               <p className="empty-text print-empty">暂无影像记录</p>
             )}

@@ -978,6 +978,7 @@ export const generateRepairReportFromProject = (project: RestorationProject): Om
     completedSteps,
     materialsSummary,
     imagesSummary,
+    imageRecords: project.imageRecords || [],
     deliveryDate: project.deliveryDate,
     reportNotes: '',
   };
