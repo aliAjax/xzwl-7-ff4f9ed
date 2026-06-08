@@ -446,7 +446,7 @@ export interface RepairReport {
   completedSteps: ReportCompletedStep[];
   materialsSummary: ReportMaterialSummary[];
   imagesSummary: ReportImageSummary[];
-  imageRecords: ImageRecord[];
+  imageRecords?: ImageRecord[];
   deliveryDate: string;
   reportNotes: string;
   createdAt: string;

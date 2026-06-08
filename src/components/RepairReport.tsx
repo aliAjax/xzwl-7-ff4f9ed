@@ -70,7 +70,7 @@ export default function RepairReport({ project, onClose, getStatusBadgeClass }: 
     return image.dataUrl || image.imageData || image.thumbnail || '';
   };
 
-  const getImagesByStage = (images: ImageRecord[]): Map<RestorationStage, ImageRecord[]> => {
+  const getImagesByStage = (images: ImageRecord[] = []): Map<RestorationStage, ImageRecord[]> => {
     const byStage = new Map<RestorationStage, ImageRecord[]>();
     STAGE_ORDER.forEach(stage => byStage.set(stage, []));
     images.forEach(img => {
