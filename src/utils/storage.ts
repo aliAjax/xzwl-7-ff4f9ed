@@ -1623,9 +1623,25 @@ export const performAutoReschedule = (
   const dateStaffLoad = buildDateStaffLoadMap(completedSchedules);
   const unresolvedConflicts: UnresolvedConflict[] = [];
   const changes: ScheduleChange[] = [];
+  const assignedStepDates = new Map<string, Map<number, string>>();
 
-  for (const task of tasksToReschedule) {
-    const { original, project, earliestDate, latestDate } = task;
+  for (let taskIndex = 0; taskIndex < tasksToReschedule.length; taskIndex++) {
+    const task = tasksToReschedule[taskIndex];
+    const { original, project, stepIndex, latestDate } = task;
+
+    let earliestDate = new Date(task.earliestDate);
+    const projectAssignedDates = assignedStepDates.get(project.id);
+    if (projectAssignedDates) {
+      for (const [prevStepIdx, assignedDateStr] of projectAssignedDates) {
+        if (prevStepIdx < stepIndex) {
+          const assignedDate = new Date(assignedDateStr);
+          assignedDate.setDate(assignedDate.getDate() + 1);
+          if (assignedDate > earliestDate) {
+            earliestDate = new Date(assignedDate);
+          }
+        }
+      }
+    }
     const stepName = original.stepName || '';
     const hours = original.estimatedHours;
     const projectTitle = project.bookTitle;
@@ -1654,26 +1670,19 @@ export const performAutoReschedule = (
         const maxHours = staffMember.dailyWorkHours || 8;
         const newLoad = currentLoad + hours;
 
+        if (newLoad > maxHours) {
+          continue;
+        }
+
         const daysDiff = Math.abs(new Date(original.scheduledDate!).getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
         const staffChangePenalty = staffMember.id === original.staffId ? 0 : 5;
         const dateChangePenalty = daysDiff * 2;
 
-        if (newLoad <= maxHours) {
-          const score = currentLoad + staffChangePenalty + dateChangePenalty;
-          if (score < minScore) {
-            minScore = score;
-            bestDate = dateStr;
-            bestStaff = staffMember;
-          }
-        } else {
-          const overload = newLoad - maxHours;
-          const overloadPenalty = overload * 20;
-          const score = currentLoad + overloadPenalty + staffChangePenalty + dateChangePenalty;
-          if (score < minScore && overload <= maxHours * 0.3) {
-            minScore = score;
-            bestDate = dateStr;
-            bestStaff = staffMember;
-          }
+        const score = currentLoad + staffChangePenalty + dateChangePenalty;
+        if (score < minScore) {
+          minScore = score;
+          bestDate = dateStr;
+          bestStaff = staffMember;
         }
       }
 
@@ -1695,7 +1704,7 @@ export const performAutoReschedule = (
           const newLoad = currentLoad + hours;
           const maxHours = staffMember.dailyWorkHours || 8;
 
-          if (newLoad <= maxHours * 1.5) {
+          if (newLoad <= maxHours) {
             bestDate = dateStr;
             bestStaff = staffMember;
             break;
@@ -1739,8 +1748,20 @@ export const performAutoReschedule = (
       }
       const staffLoad = dateStaffLoad.get(bestDate)!;
       staffLoad.set(bestStaff.id, (staffLoad.get(bestStaff.id) || 0) + hours);
+
+      if (!assignedStepDates.has(project.id)) {
+        assignedStepDates.set(project.id, new Map());
+      }
+      assignedStepDates.get(project.id)!.set(stepIndex, bestDate);
     } else {
       proposedSchedules.push(original);
+
+      if (original.scheduledDate) {
+        if (!assignedStepDates.has(project.id)) {
+          assignedStepDates.set(project.id, new Map());
+        }
+        assignedStepDates.get(project.id)!.set(stepIndex, original.scheduledDate);
+      }
 
       const deliveryDate = new Date(project.deliveryDate);
       const daysUntilDelivery = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
