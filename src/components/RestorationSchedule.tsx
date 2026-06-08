@@ -144,7 +144,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
     const now = new Date().toISOString().split('T')[0];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let currentDate = new Date(today);
     const stepEstimates: StepWorkEstimate[] = project.restorationSteps.map(step => {
       let scheduledDate: string | null = null;
@@ -221,11 +221,11 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       for (let d = daysNeeded - 1; d >= 0; d--) {
         const scheduleDate = new Date(currentDate);
         scheduleDate.setDate(scheduleDate.getDate() - d);
-        
+
         if (scheduleDate < today) {
           scheduleDate.setTime(today.getTime());
         }
-        
+
         if (d === 0) {
           stepEstimates[step.idx].scheduledDate = scheduleDate.toISOString().split('T')[0];
         }
@@ -305,7 +305,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
         const currentLoad = staffLoad.get(s.id) || 0;
         const totalLoad = staffTotalLoad.get(s.id) || 0;
         const newLoad = currentLoad + stepHours;
-        
+
         if (newLoad <= (s.dailyWorkHours || 8)) {
           const score = currentLoad * 2 + totalLoad * 0.5;
           if (score < minScore) {
@@ -323,7 +323,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
           const newLoad = currentLoad + stepHours;
           const overload = Math.max(0, newLoad - (s.dailyWorkHours || 8));
           const score = overload * 10 + currentLoad + totalLoad * 0.5;
-          
+
           if (score < minOverloadScore) {
             bestStaff = s;
             minOverloadScore = score;
@@ -394,16 +394,16 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
 
   const autoScheduleProject = (project: RestorationProject, mode: 'forward' | 'backward' = 'backward') => {
     const existing = getProjectSchedule(project.id);
-    
+
     let stepEstimates: StepWorkEstimate[];
-    
+
     if (mode === 'backward') {
       stepEstimates = calculateBackwardSchedule(project);
     } else {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       let currentDate = new Date(today);
-      
+
       stepEstimates = project.restorationSteps.map(step => {
         let scheduledDate: string | null = null;
         if (!step.completed) {
@@ -423,9 +423,9 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
 
     const now = new Date().toISOString().split('T')[0];
     const newSchedules = buildSchedulesFromEstimates(project, stepEstimates);
-    
+
     const modeText = mode === 'backward' ? '倒排模式' : '顺排模式';
-    
+
     if (existing) {
       const updatedProjectSchedules = projectSchedules.map(ps => {
         if (ps.projectId !== project.id) return ps;
@@ -537,10 +537,10 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       const incompleteEstimates = (projectSchedule.stepEstimates || []).filter(
         (_est, idx) => !project.restorationSteps[idx].completed
       );
-      
+
       const scheduledDates = incompleteEstimates.filter(e => e.scheduledDate);
       const unscheduledCount = incompleteEstimates.length - scheduledDates.length;
-      
+
       if (unscheduledCount > 0 && daysUntilDelivery < 7 && daysUntilDelivery >= 0) {
         risks.push({
           type: 'overdue',
@@ -551,7 +551,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
       const totalHours = incompleteEstimates.reduce((sum, e) => sum + e.estimatedHours, 0);
       const totalStaffHours = staff.reduce((sum, s) => sum + (s.dailyWorkHours || 8), 0);
       const minDaysNeeded = Math.ceil(totalHours / Math.max(totalStaffHours, 1));
-      
+
       if (minDaysNeeded > daysUntilDelivery && daysUntilDelivery >= 0) {
         risks.push({
           type: 'overdue',
@@ -859,7 +859,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                           <div className="staff-name">
                             {s.name}
                             {staffConflicts.length > 0 && (
-                              <span 
+                              <span
                                 className="conflict-badge"
                                 title={`${staffConflicts.length} 天负载冲突`}
                                 onClick={(e) => {
@@ -887,8 +887,8 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                         <div className="staff-conflicts">
                           <div className="conflicts-title">负载冲突：</div>
                           {staffConflicts.slice(0, 3).map((conflict, idx) => (
-                            <div 
-                              key={idx} 
+                            <div
+                              key={idx}
                               className="conflict-item"
                               onClick={() => setShowConflictDetail(conflict)}
                             >
@@ -952,7 +952,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                             {STATUS_LABELS[project.status]}
                           </span>
                           {projectConflicts.length > 0 && (
-                            <span 
+                            <span
                               className="conflict-badge"
                               title={`导致 ${projectConflicts.length} 处人员负载冲突`}
                             >
@@ -993,8 +993,8 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                             <div className="project-conflicts">
                               <div className="conflicts-section-title">🚨 人员负载冲突（{projectConflicts.length} 处）</div>
                               {projectConflicts.map((conflict, idx) => (
-                                <div 
-                                  key={idx} 
+                                <div
+                                  key={idx}
                                   className="project-conflict-item"
                                   onClick={() => setShowConflictDetail(conflict)}
                                 >
@@ -1002,7 +1002,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                                     <span className="conflict-staff">👤 {conflict.staffName}</span>
                                     <span className="conflict-date">📅 {conflict.date}</span>
                                     <span className="conflict-hours">
-                                      ⏱ {conflict.scheduledHours}h / {conflict.maxHours}h 
+                                      ⏱ {conflict.scheduledHours}h / {conflict.maxHours}h
                                       <span className="overload">(超{conflict.overloadHours}h)</span>
                                     </span>
                                   </div>
@@ -1263,7 +1263,7 @@ export default function RestorationSchedule({ projects, onSelectProject }: Resto
                       {day.schedules.slice(0, 2).map(s => {
                         const project = projects.find(p => p.id === s.projectId);
                         const isOverdue = project && getDaysUntilDelivery(project.deliveryDate) < 0;
-                        const hasConflict = dayConflicts.some(c => 
+                        const hasConflict = dayConflicts.some(c =>
                           c.relatedProjects.some(p => p.projectId === s.projectId)
                         );
                         return (
@@ -1518,14 +1518,14 @@ function ConflictDetailModal({ conflict, projects, onClose, onSelectProject }: C
           <div className="conflict-projects-section">
             <h3>涉及项目（{conflict.relatedProjects.length} 项工作）</h3>
             <p className="section-hint">点击项目卡片可跳转到项目详情页进行调整</p>
-            
+
             <div className="conflict-projects-list">
               {Object.entries(groupedByProject).map(([projectId, items]) => {
                 const project = getProjectById(projectId);
                 const totalHours = items.reduce((sum, item) => sum + item.estimatedHours, 0);
                 return (
-                  <div 
-                    key={projectId} 
+                  <div
+                    key={projectId}
                     className="conflict-project-card"
                     onClick={() => project && onSelectProject(project)}
                   >

@@ -1407,7 +1407,7 @@ export const detectStaffWorkloadConflicts = (
     });
   });
 
-  return conflicts.sort((a, b) => 
+  return conflicts.sort((a, b) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 };
