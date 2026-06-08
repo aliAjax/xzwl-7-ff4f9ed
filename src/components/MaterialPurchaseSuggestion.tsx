@@ -20,6 +20,7 @@ import {
   getStockInTemplates,
   addStockInRecord,
   batchMarkSuggestionsAsConverted,
+  batchMarkSuggestionsAsConvertedInAllHistory,
 } from '../utils/storage';
 
 interface MaterialPurchaseSuggestionProps {
@@ -284,14 +285,31 @@ export default function MaterialPurchaseSuggestion({
     if (results.length > 0) {
       if (fromSavedSuggestionId) {
         batchMarkSuggestionsAsConverted(fromSavedSuggestionId, results);
+      } else {
+        batchMarkSuggestionsAsConvertedInAllHistory(results);
       }
+      
+      setSuggestions(prev => {
+        const now = new Date().toISOString();
+        return prev.map(suggestion => {
+          const matched = results.find(r => r.name === suggestion.name && r.unit === suggestion.unit);
+          if (matched) {
+            return {
+              ...suggestion,
+              convertedToStockIn: true,
+              convertedAt: now,
+              stockInRecordId: matched.stockInRecordId,
+            };
+          }
+          return suggestion;
+        });
+      });
       
       setSelectedSuggestionKeys(new Set());
       setShowStockInDraft(false);
       setStockInDrafts([]);
       setFromSavedSuggestionId(null);
       refreshSavedSuggestions();
-      generateSuggestions();
       
       setMessage({ 
         type: 'success', 

@@ -1234,6 +1234,38 @@ export const batchMarkSuggestionsAsConverted = (
   }
 };
 
+export const batchMarkSuggestionsAsConvertedInAllHistory = (
+  items: Array<{ name: string; unit: string; stockInRecordId: string }>
+): { success: boolean; error?: string; updatedCount: number } => {
+  try {
+    const suggestions = getPurchaseSuggestions();
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+
+    items.forEach(item => {
+      suggestions.forEach(savedSuggestion => {
+        const itemIndex = savedSuggestion.suggestions.findIndex(
+          s => s.name === item.name && s.unit === item.unit && !s.convertedToStockIn
+        );
+        if (itemIndex !== -1) {
+          savedSuggestion.suggestions[itemIndex] = {
+            ...savedSuggestion.suggestions[itemIndex],
+            convertedToStockIn: true,
+            convertedAt: now,
+            stockInRecordId: item.stockInRecordId,
+          };
+          updatedCount++;
+        }
+      });
+    });
+
+    savePurchaseSuggestions(suggestions);
+    return { success: true, updatedCount };
+  } catch (error) {
+    return { success: false, error: '批量更新所有历史建议状态失败', updatedCount: 0 };
+  }
+};
+
 export const generateSavedViewId = (): string => {
   return `VIEW-${Date.now().toString(36)}`;
 };
