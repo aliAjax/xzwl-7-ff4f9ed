@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -18,10 +19,10 @@ const localStorageMock = (() => {
 
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+  writable: true,
 });
 
-vi.mock('../utils/storage', () => ({
-  getMaterialStocks: vi.fn(),
-  getScheduleData: vi.fn(),
-  generateId: vi.fn(() => 'test-id'),
-}));
+beforeEach(() => {
+  localStorageMock.clear();
+  vi.clearAllMocks();
+});

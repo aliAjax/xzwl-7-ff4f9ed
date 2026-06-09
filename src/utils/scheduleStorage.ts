@@ -155,7 +155,7 @@ export const getDateConflicts = (
     .filter(c => c.date === date);
 };
 
-const hasMatchingSkill = (staffMember: RestorationStaff, stepName: string): boolean => {
+export const hasMatchingSkill = (staffMember: RestorationStaff, stepName: string): boolean => {
   const skills = staffMember.skills || [];
   if (skills.length === 0) return true;
   const stepSkillMap: Record<string, string[]> = {
@@ -163,7 +163,7 @@ const hasMatchingSkill = (staffMember: RestorationStaff, stepName: string): bool
     '清理除尘': ['清理除尘', '清洁'],
     '脱酸处理': ['脱酸处理', '化学处理'],
     '补洞修复': ['补洞修复', '修复'],
-    '托裱加固': ['托裱加固', '托裱'],
+    '托裱加固': ['托裱加固', '托裱', '修复'],
     '晾干定型': ['晾干定型', '干燥'],
     '装订整理': ['装订整理', '装订'],
     '消毒灭菌': ['消毒灭菌', '消毒'],
@@ -173,7 +173,7 @@ const hasMatchingSkill = (staffMember: RestorationStaff, stepName: string): bool
     '压平整理': ['压平整理', '整理'],
     '清理灰烬': ['清理除尘', '清洁'],
     '脆弱页处理': ['补洞修复', '修复'],
-    '衬纸补强': ['托裱加固', '托裱'],
+    '衬纸补强': ['托裱加固', '托裱', '修复'],
     '拼接对齐': ['补缀修复', '修复'],
     '补缀修复': ['补缀修复', '修复'],
     '晾干压平': ['晾干定型', '干燥'],
@@ -260,9 +260,9 @@ const formatDate = (date: Date): string => {
 export const performAutoReschedule = (
   projects: RestorationProject[],
   staff: RestorationStaff[],
-  schedules: ScheduleItem[]
+  schedules: ScheduleItem[],
+  today: Date = new Date()
 ): AutoRescheduleResult => {
-  const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = formatDate(today);
 
@@ -353,6 +353,7 @@ export const performAutoReschedule = (
         }
       }
     }
+    const todayStr = formatDate(today);
     const stepName = original.stepName || '';
     const hours = original.estimatedHours;
     const projectTitle = project.bookTitle;
@@ -361,7 +362,11 @@ export const performAutoReschedule = (
     let bestStaff: RestorationStaff | null = null;
     let minScore = Infinity;
 
-    const currentDate = new Date(earliestDate);
+    let currentDate = new Date(earliestDate);
+    if (formatDate(currentDate) < todayStr) {
+      currentDate = new Date(today);
+    }
+    const startDate = new Date(currentDate);
     const hardDeadline = new Date(Math.min(latestDate.getTime(), new Date(project.deliveryDate).getTime()));
 
     while (currentDate <= hardDeadline) {
@@ -385,11 +390,11 @@ export const performAutoReschedule = (
           continue;
         }
 
-        const daysDiff = Math.abs(new Date(original.scheduledDate!).getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
+        const daysFromStart = (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
         const staffChangePenalty = staffMember.id === original.staffId ? 0 : 5;
-        const dateChangePenalty = daysDiff * 2;
+        const datePenalty = daysFromStart * 1;
 
-        const score = currentLoad + staffChangePenalty + dateChangePenalty;
+        const score = currentLoad + staffChangePenalty + datePenalty;
         if (score < minScore) {
           minScore = score;
           bestDate = dateStr;
